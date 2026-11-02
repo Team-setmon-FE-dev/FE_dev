@@ -96,8 +96,6 @@ fun CameraTestScreen(modifier: Modifier = Modifier) {
 
     // 2. CameraX 및 녹화 관련 상태값 초기화
     val previewView = remember { PreviewView(context) }
-
-    // 전면 / 후면 카메라 상태 관리 (기본값: 후면)
     var lensFacing by remember { mutableStateOf(CameraSelector.DEFAULT_BACK_CAMERA) }
 
     val recorder = remember {
@@ -134,7 +132,7 @@ fun CameraTestScreen(modifier: Modifier = Modifier) {
                 cameraProvider.unbindAll()
                 cameraProvider.bindToLifecycle(
                     lifecycleOwner,
-                    lensFacing, // 전면 또는 후면 선택
+                    lensFacing,
                     preview,
                     videoCapture
                 )
@@ -146,16 +144,14 @@ fun CameraTestScreen(modifier: Modifier = Modifier) {
 
     // 4. UI 레이아웃
     Box(modifier = modifier.fillMaxSize()) {
-        // 뷰파인더
         AndroidView(
             factory = { previewView },
             modifier = Modifier.fillMaxSize()
         )
 
-        // 우측 상단: 전면/후면 카메라 전환 버튼
+        // 전면/후면 전환 버튼
         Button(
             onClick = {
-                // 전면 ↔ 후면 스위칭
                 lensFacing = if (lensFacing == CameraSelector.DEFAULT_BACK_CAMERA) {
                     CameraSelector.DEFAULT_FRONT_CAMERA
                 } else {
@@ -176,7 +172,6 @@ fun CameraTestScreen(modifier: Modifier = Modifier) {
                 .padding(bottom = 48.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 추출된 썸네일 미리보기
             thumbnailBitmap?.let { bitmap ->
                 Text("추출된 첫 프레임 썸네일:", color = Color.White)
                 Spacer(modifier = Modifier.height(8.dp))
@@ -207,14 +202,12 @@ fun CameraTestScreen(modifier: Modifier = Modifier) {
                             onPress = {
                                 val moviesDir = context.getExternalFilesDir(Environment.DIRECTORY_MOVIES)
                                 val outputFile = File(moviesDir, "test_clip_${System.currentTimeMillis()}.mp4")
-                                Log.d("FilePath", "비디오 저장 절대경로: ${outputFile.absolutePath}")
 
                                 val outputOptions = FileOutputOptions.Builder(outputFile).build()
 
                                 recordingStartTime = System.currentTimeMillis()
                                 isRecordingUI = true
 
-                                // 녹화 시작
                                 activeRecording = videoCapture.output
                                     .prepareRecording(context, outputOptions)
                                     .withAudioEnabled()
@@ -226,21 +219,44 @@ fun CameraTestScreen(modifier: Modifier = Modifier) {
                                                 if (duration < 1000) { // 1초 미만 취소
                                                     outputFile.delete()
                                                     Toast.makeText(context, "1초 이상 찍어주세요", Toast.LENGTH_SHORT).show()
-                                                } else { // 1~2초 성공시 썸네일 추출
-                                                    thumbnailBitmap = extractFirstFrame(context, outputFile)
-                                                    Toast.makeText(context, "저장 완료: ${outputFile.name}", Toast.LENGTH_SHORT).show()
+                                                } else {
+                                                    // 1~2초 촬영 성공 시 썸네일 추출
+                                                    val thumbFile = extractFirstFrame(context, outputFile)
+                                                    thumbnailBitmap = thumbFile?.first
+
+                                                    Toast.makeText(context, "로컬 저장 완료: ${outputFile.name}", Toast.LENGTH_SHORT).show()
+
+                                                    /*
+                                                     * ==============================================================
+                                                     * [AWS S3 연동 시 변경 포인트 (2주차 B파트 핵심)]
+                                                     * ==============================================================
+                                                     * 현재는 로컬 단독 테스트를 위해 기기 내부에만 보관하지만,
+                                                     * C(백엔드)의 API가 연결되면 아래 순서로 업로드 로직이 실행됩니다:
+                                                     *
+                                                     * 1. C의 서버로 Presigned URL 요청 (Retrofit)
+                                                     *    - POST /api/v1/clips/presigned-url
+                                                     *    - Request: { videoName, thumbnailName }
+                                                     *    - Response: { videoUploadUrl, thumbnailUploadUrl, videoS3Key, thumbnailS3Key }
+                                                     *
+                                                     * 2. S3 버킷으로 파일 직접 업로드 (OkHttp PUT)
+                                                     *    - okHttpClient.newCall(PUT videoUploadUrl, outputFile).enqueue(...)
+                                                     *    - okHttpClient.newCall(PUT thumbnailUploadUrl, thumbFile.second).enqueue(...)
+                                                     *
+                                                     * 3. 업로드 완료 후 C의 클립 등록 API 호출
+                                                     *    - POST /api/v1/clips
+                                                     *    - Request: { videoS3Key, thumbnailS3Key, durationMs, recordedAt }
+                                                     *
+                                                     * 4. 업로드 완료 시 로컬 임시 파일(outputFile, thumbFile.second) 삭제
+                                                     * ==============================================================
+                                                     */
                                                 }
                                             }
                                         }
                                     }
 
-                                // 2초 초과 시 자동 중지 타이머
                                 handler.postDelayed(stopRunnable, 2000)
-
-                                // 손을 뗄 때까지 대기
                                 tryAwaitRelease()
 
-                                // 손을 떼었을 때 녹화 종료
                                 handler.removeCallbacks(stopRunnable)
                                 activeRecording?.stop()
                                 activeRecording = null
@@ -253,8 +269,8 @@ fun CameraTestScreen(modifier: Modifier = Modifier) {
     }
 }
 
-// 첫 프레임을 Bitmap으로 추출하여 JPEG로 저장하는 함수
-private fun extractFirstFrame(context: Context, videoFile: File): Bitmap? {
+// 첫 프레임 추출 함수 (Bitmap과 생성된 JPEG File을 Pair로 함께 반환하도록 보완)
+private fun extractFirstFrame(context: Context, videoFile: File): Pair<Bitmap, File>? {
     val retriever = MediaMetadataRetriever()
     return try {
         retriever.setDataSource(videoFile.absolutePath)
@@ -266,9 +282,10 @@ private fun extractFirstFrame(context: Context, videoFile: File): Bitmap? {
             FileOutputStream(thumbFile).use { out ->
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
             }
-            Log.d("FilePath", "썸네일 저장 절대경로: ${thumbFile.absolutePath}")
+            Pair(bitmap, thumbFile)
+        } else {
+            null
         }
-        bitmap
     } catch (e: Exception) {
         Log.e("FilePath", "썸네일 추출 실패", e)
         null
