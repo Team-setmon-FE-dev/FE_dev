@@ -33,3 +33,9 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# Firebase 
+*firebase-adminsdk*.json
+
+# macOS
+.DS_Store
