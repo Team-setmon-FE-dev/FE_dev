@@ -6,11 +6,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navOptions
 import com.setmon.core.model.MOCK_MY_USER_ID
-import com.setmon.feature.auth.navigation.LoginRoute
+import com.setmon.feature.auth.navigation.SplashRoute
 import com.setmon.feature.auth.navigation.loginScreen
 import com.setmon.feature.auth.navigation.navigateToLogin
 import com.setmon.feature.auth.navigation.navigateToSignup
 import com.setmon.feature.auth.navigation.signupScreen
+import com.setmon.feature.auth.navigation.splashScreen
 import com.setmon.feature.calendar.navigation.calendarScreen
 import com.setmon.feature.calendar.navigation.navigateToCalendar
 import com.setmon.feature.capture.navigation.captureScreen
@@ -43,8 +44,14 @@ fun SetmonNavHost(
 
     NavHost(
         navController = navController,
-        startDestination = LoginRoute,
+        startDestination = SplashRoute,
     ) {
+        // S-00 → 로그인 기록이 없으면 S-01, 있으면 S-03 (인트로는 뒤로 가기로 돌아오지 않게 지운다)
+        splashScreen(
+            onNeedLogin = { navController.navigateToLogin(navOptions = clearAll()) },
+            onLoggedIn = { goToMyCalendar() },
+        )
+
         // S-01, S-02
         loginScreen(
             onLoginSuccess = { goToMyCalendar() },
