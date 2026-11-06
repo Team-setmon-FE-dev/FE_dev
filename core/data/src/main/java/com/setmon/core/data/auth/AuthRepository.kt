@@ -8,6 +8,9 @@ import com.setmon.core.model.User
  * 바꾸는 곳은 di/DataModule.kt 한 줄뿐이다.
  */
 interface AuthRepository {
+    /** 기기에 저장된 로그인(토큰)이 있는지. 앱 시작 시 S-00 에서 로그인 / 달력 중 어디로 갈지 정한다. */
+    suspend fun hasSavedSession(): Boolean
+
     suspend fun login(email: String, password: String): AuthResult
 
     suspend fun signup(email: String, password: String, nickname: String): AuthResult

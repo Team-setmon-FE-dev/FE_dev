@@ -90,6 +90,11 @@ fun NavGraphBuilder.captureScreen(
   - 이메일 `offline@setmon.app` → 네트워크 오류
 - 실서버로 바꿀 때는 `core/data/.../di/DataModule.kt` 의 `@Binds` 한 줄만 바꾼다
 
+### 앱 첫 화면 (S-00)
+
+시스템 스플래시(종이색 + 로고 A) → 브랜드 인트로(바인더·영수증·폴라로이드, 약 1초) → 저장된 로그인이 없으면 S-01, 있으면 S-03.
+Mock 단계에서는 로그인 기록을 기억하지 않아 항상 S-01 로 간다(2주차 DataStore 토큰 저장 후 자동 로그인).
+
 ### FCM 토큰 확인
 
 `app/google-services.json` 을 넣고 실행 → Logcat 에서 `SetmonFCM` 으로 검색하면 `FCM token = ...` 이 찍힌다.

@@ -6,7 +6,12 @@ import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import com.setmon.feature.auth.login.LoginRoot
 import com.setmon.feature.auth.signup.SignupRoot
+import com.setmon.feature.auth.splash.SplashRoot
 import kotlinx.serialization.Serializable
+
+/** S-00 스플래시(브랜드 인트로) — 앱의 첫 화면 */
+@Serializable
+data object SplashRoute
 
 /** S-01 로그인 — route: login */
 @Serializable
@@ -21,6 +26,16 @@ fun NavController.navigateToLogin(navOptions: NavOptions? = null) =
 
 fun NavController.navigateToSignup(navOptions: NavOptions? = null) =
     navigate(SignupRoute, navOptions)
+
+/** 인트로를 잠깐 보여준 뒤 저장된 로그인이 없으면 [onNeedLogin], 있으면 [onLoggedIn] */
+fun NavGraphBuilder.splashScreen(
+    onNeedLogin: () -> Unit,
+    onLoggedIn: () -> Unit,
+) {
+    composable<SplashRoute> {
+        SplashRoot(onNeedLogin = onNeedLogin, onLoggedIn = onLoggedIn)
+    }
+}
 
 fun NavGraphBuilder.loginScreen(
     onLoginSuccess: () -> Unit,

@@ -24,11 +24,11 @@ internal data class SignupUiState(
     val email: String = "",
     val password: String = "",
     val nickname: String = "",
-    @StringRes val emailError: Int? = null,
-    @StringRes val passwordError: Int? = null,
-    @StringRes val nicknameError: Int? = null,
+    @param:StringRes val emailError: Int? = null,
+    @param:StringRes val passwordError: Int? = null,
+    @param:StringRes val nicknameError: Int? = null,
     /** 이메일 중복 외의 서버 오류 (네트워크 등) */
-    @StringRes val formError: Int? = null,
+    @param:StringRes val formError: Int? = null,
     val isLoading: Boolean = false,
     val step: SignupStep = SignupStep.Form,
 ) {

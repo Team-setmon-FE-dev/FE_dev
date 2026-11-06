@@ -19,10 +19,10 @@ import javax.inject.Inject
 internal data class LoginUiState(
     val email: String = "",
     val password: String = "",
-    @StringRes val emailError: Int? = null,
-    @StringRes val passwordError: Int? = null,
+    @param:StringRes val emailError: Int? = null,
+    @param:StringRes val passwordError: Int? = null,
     /** 서버가 거절했을 때 (비밀번호 틀림, 네트워크 등) 버튼 위에 보이는 문구 */
-    @StringRes val formError: Int? = null,
+    @param:StringRes val formError: Int? = null,
     val isLoading: Boolean = false,
     val isLoggedIn: Boolean = false,
 ) {

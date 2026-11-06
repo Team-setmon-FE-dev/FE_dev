@@ -18,12 +18,17 @@ import javax.inject.Singleton
 @Singleton
 class FakeAuthRepository @Inject constructor() : AuthRepository {
 
+    /** 앱을 껐다 켜도 기억하지 않는다 → 항상 로그인 화면부터. 2주차 DataStore 토큰 저장 후 진짜로 바뀐다. */
+    private var loggedIn = false
+
+    override suspend fun hasSavedSession(): Boolean = loggedIn
+
     override suspend fun login(email: String, password: String): AuthResult {
         delay(FAKE_LATENCY_MS)
         return when {
             email.equals(OFFLINE_EMAIL, ignoreCase = true) -> AuthResult.Failure(AuthError.NETWORK)
             password == WRONG_PASSWORD -> AuthResult.Failure(AuthError.INVALID_CREDENTIALS)
-            else -> AuthResult.Success(User(id = MOCK_MY_USER_ID, nickname = email.substringBefore('@')))
+            else -> AuthResult.Success(User(id = MOCK_MY_USER_ID, nickname = email.substringBefore('@'))).also { loggedIn = true }
         }
     }
 
@@ -32,7 +37,7 @@ class FakeAuthRepository @Inject constructor() : AuthRepository {
         return when {
             email.equals(OFFLINE_EMAIL, ignoreCase = true) -> AuthResult.Failure(AuthError.NETWORK)
             email.equals(TAKEN_EMAIL, ignoreCase = true) -> AuthResult.Failure(AuthError.EMAIL_DUPLICATED)
-            else -> AuthResult.Success(User(id = MOCK_MY_USER_ID, nickname = nickname))
+            else -> AuthResult.Success(User(id = MOCK_MY_USER_ID, nickname = nickname)).also { loggedIn = true }
         }
     }
 

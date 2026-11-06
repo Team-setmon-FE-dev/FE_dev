@@ -3,6 +3,12 @@
     <string name="auth_brand" translatable="false">setmon</string>
     <string name="auth_tagline">one moment, every hour</string>
 
+    <!-- S-00 브랜드 인트로 (브랜드 문구라 영어 그대로) -->
+    <string name="splash_wordmark_tagline" translatable="false">ONE MOMENT  ·  EVERY HOUR</string>
+    <string name="splash_headline_1" translatable="false">One moment,</string>
+    <string name="splash_headline_2" translatable="false">every hour</string>
+    <string name="splash_subtitle" translatable="false">Video diary, one hour at a time</string>
+
     <string name="auth_email_hint">이메일</string>
     <string name="auth_password_hint">비밀번호 (8자 이상)</string>
     <string name="auth_nickname_hint">닉네임 (2~10자)</string>
