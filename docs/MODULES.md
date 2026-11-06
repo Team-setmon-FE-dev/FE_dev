@@ -81,6 +81,20 @@ fun NavGraphBuilder.captureScreen(
 3. Gradle sync → 에뮬레이터나 폰에서 ▶ 실행
 4. 로그인(Mock) → 달력 → 촬영 버튼으로 촬영 화면이 열리면 정상
 
+### Mock 로그인·가입 (서버 연결 전, `core:data` FakeAuthRepository)
+
+- 형식만 맞으면 성공한다: 이메일 형식, 비밀번호 8자 이상, 닉네임 2~10자
+- 일부러 실패를 보고 싶을 때
+  - 가입 이메일 `taken@setmon.app` → "이미 가입된 이메일이에요"
+  - 로그인 비밀번호 `wrongpassword` → "이메일 또는 비밀번호가 맞지 않아요"
+  - 이메일 `offline@setmon.app` → 네트워크 오류
+- 실서버로 바꿀 때는 `core/data/.../di/DataModule.kt` 의 `@Binds` 한 줄만 바꾼다
+
+### FCM 토큰 확인
+
+`app/google-services.json` 을 넣고 실행 → Logcat 에서 `SetmonFCM` 으로 검색하면 `FCM token = ...` 이 찍힌다.
+파일이 없으면 "Firebase 미설정" 경고만 찍히고 앱은 그대로 동작한다.
+
 ## 7. 버전 정보
 
 - AGP 9.3.3 · Gradle 9.5.0 · Kotlin 2.2.10 (AGP 9 built-in Kotlin, `kotlin-android` 플러그인 없음)

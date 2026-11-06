@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,6 +41,7 @@ fun SetmonTextField(
     errorMessage: String? = null,
     isPassword: Boolean = false,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
 ) {
     val colors = SetmonTheme.colors
     val shape = SetmonTheme.shapes.button
@@ -64,6 +66,7 @@ fun SetmonTextField(
             textStyle = SetmonTheme.typography.body.copy(color = colors.textPrimary),
             cursorBrush = SolidColor(colors.primary),
             interactionSource = interaction,
+            keyboardActions = keyboardActions,
             visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
             keyboardOptions = if (isPassword) keyboardOptions.copy(keyboardType = KeyboardType.Password) else keyboardOptions,
             modifier = Modifier.fillMaxWidth(),

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="auth_brand" translatable="false">setmon</string>
+    <string name="auth_tagline">one moment, every hour</string>
+
+    <string name="auth_email_hint">이메일</string>
+    <string name="auth_password_hint">비밀번호 (8자 이상)</string>
+    <string name="auth_nickname_hint">닉네임 (2~10자)</string>
+
+    <string name="auth_login">로그인</string>
+    <string name="auth_go_signup">계정 만들기</string>
+    <string name="auth_signup_title">회원가입</string>
+    <string name="auth_signup">가입하기</string>
+    <string name="auth_go_login">이미 계정이 있어요 · 로그인</string>
+
+    <string name="auth_error_email_format">이메일 형식이 아니에요</string>
+    <string name="auth_error_password_length">비밀번호는 8자 이상이에요</string>
+    <string name="auth_error_nickname_length">닉네임은 2~10자로 적어 주세요</string>
+    <string name="auth_error_invalid_credentials">이메일 또는 비밀번호가 맞지 않아요</string>
+    <string name="auth_error_email_duplicated">이미 가입된 이메일이에요</string>
+    <string name="auth_error_network">인터넷 연결을 확인하고 다시 시도해 주세요</string>
+    <string name="auth_error_unknown">잠시 후 다시 시도해 주세요</string>
+
+    <string name="permission_title">첫 순간을 찍기 전에</string>
+    <string name="permission_camera">카메라 — 매시간 짧은 영상을 찍어요</string>
+    <string name="permission_microphone">마이크 — 그 순간의 소리를 담아요</string>
+    <string name="permission_notification">알림 — 매시 정각에 찍을 시간을 알려 드려요</string>
+    <string name="permission_continue">계속</string>
+</resources>

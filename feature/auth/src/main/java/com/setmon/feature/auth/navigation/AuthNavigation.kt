@@ -4,8 +4,8 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
-import com.setmon.feature.auth.LoginScreen
-import com.setmon.feature.auth.SignupScreen
+import com.setmon.feature.auth.login.LoginRoot
+import com.setmon.feature.auth.signup.SignupRoot
 import kotlinx.serialization.Serializable
 
 /** S-01 로그인 — route: login */
@@ -27,15 +27,16 @@ fun NavGraphBuilder.loginScreen(
     onSignupClick: () -> Unit,
 ) {
     composable<LoginRoute> {
-        LoginScreen(onLoginSuccess = onLoginSuccess, onSignupClick = onSignupClick)
+        LoginRoot(onLoginSuccess = onLoginSuccess, onSignupClick = onSignupClick)
     }
 }
 
+/** 가입 성공 → 권한 안내 → [onSignupComplete]. 권한 안내는 같은 route 안의 두 번째 단계다. */
 fun NavGraphBuilder.signupScreen(
     onSignupComplete: () -> Unit,
     onBack: () -> Unit,
 ) {
     composable<SignupRoute> {
-        SignupScreen(onSignupComplete = onSignupComplete, onBack = onBack)
+        SignupRoot(onSignupComplete = onSignupComplete, onBack = onBack)
     }
 }
