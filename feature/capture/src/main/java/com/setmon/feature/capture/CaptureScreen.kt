@@ -83,6 +83,7 @@ val PretendardFontFamily = FontFamily(
     Font(R.font.pretendard_medium, FontWeight.W500),
     Font(R.font.pretendard_semibold, FontWeight.W600)
 )
+
 val PlayfairFontFamily = FontFamily(
     Font(R.font.playfair_display_regular, FontWeight.W400)
 )
@@ -96,23 +97,25 @@ val AccentRed = Color(0xFFD34E36)
 val ProgressTrackColor = Color(0xFFDDD2BA)
 
 // ==========================================
-// 2. State Machine Enum
+// 2. UI State & State Machine Enum
 // ==========================================
 enum class CaptureStep {
-    CAPTURE_IDLE,    // Step 1: 대기
+    CAPTURE_IDLE,    // Step 1: 촬영 대기
     RECORDING,       // Step 2: 녹화 중
-    PREVIEW,         // Step 3: 미러링/미리보기 (ExoPlayer 원본 비율 크롭 재생)
+    PREVIEW,         // Step 3: 미리보기
     CHOOSE_COVER     // Step 4: 커버 선택
 }
 
 // ==========================================
-// 3. Main Screen Flow Container (CaptureScreen)
+// 3. Main Screen Container (CaptureScreen)
 // ==========================================
 @SuppressLint("MissingPermission")
 @Composable
 fun CaptureScreen(
     uiState: CaptureUiState = CaptureUiState.Idle,
+    isSlotOccupied: Boolean = false,
     onRecordComplete: (videoFile: File, thumbFile: File, durationMs: Long) -> Unit = { _, _, _ -> },
+    onRetryUpload: (videoFile: File, thumbFile: File, durationMs: Long) -> Unit = { _, _, _ -> },
     onUploadSuccess: (ClipRegisterResponse) -> Unit = {},
     onBack: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -176,7 +179,7 @@ fun CaptureScreen(
                 modifier = Modifier.padding(24.dp)
             ) {
                 Text(
-                    text = "카메라 및 마이크 권한이 필요합니다.",
+                    text = "카메라 및 마이크 권한을 허용해주세요.",
                     color = Color.White,
                     fontSize = 15.sp,
                     modifier = Modifier.padding(bottom = 16.dp)
@@ -268,6 +271,7 @@ fun CaptureScreen(
                     CaptureAndRecordScreen(
                         currentStep = currentStep,
                         recordDurationSeconds = recordDurationSeconds,
+                        isSlotOccupied = isSlotOccupied,
                         previewView = previewView,
                         onSwitchCamera = {
                             lensFacing = if (lensFacing == CameraSelector.DEFAULT_BACK_CAMERA) {
@@ -318,7 +322,7 @@ fun CaptureScreen(
                                 }
                             } catch (e: Exception) {
                                 Log.e("CaptureScreen", "Recording start failed", e)
-                                Toast.makeText(context, "녹화 시작 실패: ${e.message}", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "촬영 실패: ${e.message}", Toast.LENGTH_SHORT).show()
                                 currentStep = CaptureStep.CAPTURE_IDLE
                             }
                         },
@@ -340,6 +344,7 @@ fun CaptureScreen(
                         recordDuration = recordDurationSeconds,
                         videoFile = capturedVideoFile,
                         previewBitmap = extractedCoverFrames.getOrNull(selectedFrameIndex),
+                        isSlotOccupied = isSlotOccupied,
                         onRetake = {
                             capturedVideoFile?.delete()
                             capturedVideoFile = null
@@ -384,6 +389,7 @@ fun CaptureScreen(
             }
         }
 
+        // 업로드 중 인디케이터
         if (uiState is CaptureUiState.Uploading) {
             Box(
                 modifier = Modifier
@@ -391,7 +397,63 @@ fun CaptureScreen(
                     .background(Color.Black.copy(alpha = 0.7f)),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = Color.White)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = Color.White)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = if (uiState.retryAttempt > 0) "업로드 중... (${uiState.retryAttempt}/3)" else "업로드 중...",
+                        color = Color.White,
+                        fontSize = 14.sp
+                    )
+                }
+            }
+        }
+
+        // 업로드 실패 시 재시도 다이얼로그
+        if (uiState is CaptureUiState.UploadFailed) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.85f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = CreamBackground),
+                    modifier = Modifier.padding(32.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "업로드 실패",
+                            fontFamily = PretendardFontFamily,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.W600,
+                            color = AccentRed
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = uiState.errorMessage.ifBlank { "네트워크 연결을 확인해주세요." },
+                            fontFamily = PretendardFontFamily,
+                            fontSize = 13.sp,
+                            color = MutedText,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Button(
+                            onClick = {
+                                onRetryUpload(uiState.videoFile, uiState.thumbFile, uiState.durationMs)
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = DarkGreen),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("재시도", color = Color.White, fontSize = 15.sp)
+                        }
+                    }
+                }
             }
         }
     }
@@ -404,6 +466,7 @@ fun CaptureScreen(
 private fun CaptureAndRecordScreen(
     currentStep: CaptureStep,
     recordDurationSeconds: Float,
+    isSlotOccupied: Boolean,
     previewView: PreviewView,
     onSwitchCamera: () -> Unit,
     onStartRecord: () -> Unit,
@@ -458,7 +521,8 @@ private fun CaptureAndRecordScreen(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            if (currentStep == CaptureStep.CAPTURE_IDLE) {
+
+            if (currentStep == CaptureStep.CAPTURE_IDLE && isSlotOccupied) {
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
@@ -466,7 +530,7 @@ private fun CaptureAndRecordScreen(
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Text(
-                        text = "Already posted at $currentHourText   uploading will replace it",
+                        text = "Already posted at $currentHourText • uploading will replace it",
                         fontFamily = PretendardFontFamily,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.W400,
@@ -506,7 +570,7 @@ private fun CaptureAndRecordScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = if (currentStep == CaptureStep.RECORDING) "Release to finish" else "Hold to record  2 seconds",
+                text = if (currentStep == CaptureStep.RECORDING) "Release to finish" else "Hold to record max 2 seconds",
                 fontFamily = PretendardFontFamily,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.W400,
@@ -575,6 +639,7 @@ private fun RecordButton(
         animationSpec = tween(durationMillis = 50),
         label = "ArcProgress"
     )
+
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
@@ -624,7 +689,7 @@ private fun RecordButton(
 }
 
 // ==========================================
-// 6. Preview Screen Component (ExoPlayer - 원본 카메라 시야/크롭 100% 동기화)
+// 6. Preview Screen Component
 // ==========================================
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
@@ -632,6 +697,7 @@ private fun PreviewScreen(
     recordDuration: Float,
     videoFile: File?,
     previewBitmap: Bitmap?,
+    isSlotOccupied: Boolean,
     onRetake: () -> Unit,
     onChooseCover: () -> Unit,
     onUpload: () -> Unit,
@@ -640,13 +706,12 @@ private fun PreviewScreen(
     val context = LocalContext.current
     val currentHourText = remember { SimpleDateFormat("HH:00", Locale.KOREA).format(Date()) }
 
-    // ExoPlayer 객체 생성 및 관리
     val exoPlayer = remember(videoFile) {
         if (videoFile != null && videoFile.exists()) {
             ExoPlayer.Builder(context).build().apply {
                 val mediaItem = MediaItem.fromUri(Uri.fromFile(videoFile))
                 setMediaItem(mediaItem)
-                repeatMode = Player.REPEAT_MODE_ONE // 무한 반복
+                repeatMode = Player.REPEAT_MODE_ONE
                 prepare()
                 playWhenReady = true
             }
@@ -665,8 +730,7 @@ private fun PreviewScreen(
                 factory = { ctx ->
                     PlayerView(ctx).apply {
                         player = exoPlayer
-                        useController = false // 컨트롤러 바 감추기
-                        // PreviewView의 FILL_CENTER와 완전히 동등한 Center Crop 비율 매핑
+                        useController = false
                         resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                     }
                 },
@@ -687,6 +751,7 @@ private fun PreviewScreen(
                 contentScale = ContentScale.Crop
             )
         }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -708,7 +773,7 @@ private fun PreviewScreen(
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
                 Text(
-                    text = String.format(Locale.KOREA, "Looping   %.1f s", recordDuration),
+                    text = String.format(Locale.KOREA, "Looping • %.1f s", recordDuration),
                     fontFamily = PretendardFontFamily,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.W400,
@@ -716,6 +781,7 @@ private fun PreviewScreen(
                 )
             }
         }
+
         Card(
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
             colors = CardDefaults.cardColors(containerColor = CreamBackground),
@@ -735,7 +801,7 @@ private fun PreviewScreen(
                 ) {
                     Column {
                         Text(
-                            text = "Today   $currentHourText",
+                            text = "Today • $currentHourText",
                             fontFamily = PretendardFontFamily,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.W600,
@@ -743,7 +809,7 @@ private fun PreviewScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Replaces your earlier $currentHourText clip",
+                            text = if (isSlotOccupied) "Replaces your earlier $currentHourText clip" else "Add your $currentHourText moment",
                             fontFamily = PretendardFontFamily,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.W400,
@@ -978,6 +1044,7 @@ private fun extractFramesFromVideo(videoFile: File, count: Int = 7): List<Bitmap
         val durationMs = durationStr?.toLongOrNull() ?: 0L
         val durationUs = durationMs * 1000L
         val stepUs = if (count > 1) durationUs / (count - 1) else 0L
+
         for (i in 0 until count) {
             val timeUs = stepUs * i
             val bitmap = retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)

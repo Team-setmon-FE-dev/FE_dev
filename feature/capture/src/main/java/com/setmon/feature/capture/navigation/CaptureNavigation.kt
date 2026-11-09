@@ -22,7 +22,6 @@ fun NavGraphBuilder.captureScreen(
     onBack: () -> Unit
 ) {
     composable(route = CAPTURE_ROUTE) {
-        // @Composable 영역인 composable 람다 내부에서 ViewModel을 주입받습니다.
         val viewModel: CaptureViewModel = hiltViewModel()
         val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -30,6 +29,9 @@ fun NavGraphBuilder.captureScreen(
             uiState = uiState,
             onRecordComplete = { videoFile, thumbFile, durationMs ->
                 viewModel.uploadClip(videoFile, thumbFile, durationMs)
+            },
+            onRetryUpload = { videoFile, thumbFile, durationMs ->
+                viewModel.uploadClipWithRetry(videoFile, thumbFile, durationMs)
             },
             onUploadSuccess = onUploadSuccess,
             onBack = onBack

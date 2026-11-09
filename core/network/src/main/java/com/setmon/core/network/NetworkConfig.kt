@@ -6,5 +6,5 @@ package com.setmon.core.network
  */
 internal object NetworkConfig {
     // C가 서버 주소를 정하면 바꾼다
-    const val BASE_URL = "https://example.invalid/"
+    const val BASE_URL = "http://192.168.0.65:8080/"
 }
