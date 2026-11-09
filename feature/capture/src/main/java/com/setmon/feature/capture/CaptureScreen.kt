@@ -643,7 +643,8 @@ private fun PreviewScreen(
                         setVideoPath(videoFile.absolutePath)
                         setOnPreparedListener { mediaPlayer ->
                             mediaPlayer.isLooping = true
-                            mediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING)
+                            // 원본 비율에 맞춰 확대(Crop) 없이 맞춤
+                            mediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT)
                             mediaPlayer.start()
                         }
                     }
