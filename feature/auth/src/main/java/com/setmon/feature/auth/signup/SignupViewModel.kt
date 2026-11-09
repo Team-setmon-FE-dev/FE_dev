@@ -31,6 +31,8 @@ internal data class SignupUiState(
     @param:StringRes val formError: Int? = null,
     val isLoading: Boolean = false,
     val step: SignupStep = SignupStep.Form,
+    /** 가입 성공 후의 내 userId. [SignupStep.Permissions] 에서는 항상 값이 있다 */
+    val signedUpUserId: Long? = null,
 ) {
     val canSubmit: Boolean get() = email.isNotBlank() && password.isNotEmpty() && nickname.isNotBlank()
 }
@@ -69,7 +71,7 @@ internal class SignupViewModel @Inject constructor(
             val result = authRepository.signup(state.email.trim(), state.password, state.nickname.trim())
             _uiState.update {
                 when (result) {
-                    is AuthResult.Success -> it.copy(isLoading = false, step = SignupStep.Permissions)
+                    is AuthResult.Success -> it.copy(isLoading = false, step = SignupStep.Permissions, signedUpUserId = result.userId)
                     // 이메일 중복은 이메일 칸 아래에, 나머지는 버튼 위에
                     is AuthResult.Failure -> if (result.error == AuthError.EMAIL_DUPLICATED) {
                         it.copy(isLoading = false, emailError = result.error.messageRes())

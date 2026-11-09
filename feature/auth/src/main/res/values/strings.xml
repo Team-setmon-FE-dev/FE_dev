@@ -10,7 +10,7 @@
     <string name="splash_subtitle" translatable="false">Video diary, one hour at a time</string>
 
     <string name="auth_email_hint">이메일</string>
-    <string name="auth_password_hint">비밀번호 (8자 이상)</string>
+    <string name="auth_password_hint">비밀번호 (8~64자)</string>
     <string name="auth_nickname_hint">닉네임 (2~10자)</string>
 
     <string name="auth_login">로그인</string>
@@ -20,10 +20,11 @@
     <string name="auth_go_login">이미 계정이 있어요 · 로그인</string>
 
     <string name="auth_error_email_format">이메일 형식이 아니에요</string>
-    <string name="auth_error_password_length">비밀번호는 8자 이상이에요</string>
+    <string name="auth_error_password_length">비밀번호는 8~64자로 적어 주세요</string>
     <string name="auth_error_nickname_length">닉네임은 2~10자로 적어 주세요</string>
     <string name="auth_error_invalid_credentials">이메일 또는 비밀번호가 맞지 않아요</string>
     <string name="auth_error_email_duplicated">이미 가입된 이메일이에요</string>
+    <string name="auth_error_invalid_input">입력한 내용을 다시 확인해 주세요</string>
     <string name="auth_error_network">인터넷 연결을 확인하고 다시 시도해 주세요</string>
     <string name="auth_error_unknown">잠시 후 다시 시도해 주세요</string>
 

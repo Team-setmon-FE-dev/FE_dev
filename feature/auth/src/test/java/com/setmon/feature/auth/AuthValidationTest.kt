@@ -19,6 +19,8 @@ class AuthValidationTest {
     fun password_atLeast8() {
         assertFalse(AuthValidation.isValidPassword("1234567"))
         assertTrue(AuthValidation.isValidPassword("12345678"))
+        assertTrue(AuthValidation.isValidPassword("a".repeat(64)))
+        assertFalse(AuthValidation.isValidPassword("a".repeat(65)))
     }
 
     @Test

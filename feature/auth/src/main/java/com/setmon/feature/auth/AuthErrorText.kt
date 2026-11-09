@@ -8,6 +8,7 @@ import com.setmon.core.data.auth.AuthError
 internal fun AuthError.messageRes(): Int = when (this) {
     AuthError.EMAIL_DUPLICATED -> R.string.auth_error_email_duplicated
     AuthError.INVALID_CREDENTIALS -> R.string.auth_error_invalid_credentials
+    AuthError.INVALID_INPUT -> R.string.auth_error_invalid_input
     AuthError.NETWORK -> R.string.auth_error_network
     AuthError.UNKNOWN -> R.string.auth_error_unknown
 }

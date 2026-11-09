@@ -36,7 +36,7 @@ import com.setmon.feature.auth.R
 /** S-02 회원가입. 가입 성공 → 권한 안내 → [onSignupComplete] (S-03 내 달력) */
 @Composable
 internal fun SignupRoot(
-    onSignupComplete: () -> Unit,
+    onSignupComplete: (userId: Long) -> Unit,
     onBack: () -> Unit,
     viewModel: SignupViewModel = hiltViewModel(),
 ) {
@@ -53,8 +53,9 @@ internal fun SignupRoot(
         )
         SignupStep.Permissions -> {
             // 이미 가입됐으니 뒤로 가기로 입력 화면에 돌아가지 않는다
-            BackHandler { onSignupComplete() }
-            PermissionScreen(onDone = onSignupComplete)
+            val userId = checkNotNull(uiState.signedUpUserId)
+            BackHandler { onSignupComplete(userId) }
+            PermissionScreen(onDone = { onSignupComplete(userId) })
         }
     }
 }

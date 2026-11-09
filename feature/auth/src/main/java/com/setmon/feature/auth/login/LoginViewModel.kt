@@ -24,7 +24,8 @@ internal data class LoginUiState(
     /** 서버가 거절했을 때 (비밀번호 틀림, 네트워크 등) 버튼 위에 보이는 문구 */
     @param:StringRes val formError: Int? = null,
     val isLoading: Boolean = false,
-    val isLoggedIn: Boolean = false,
+    /** 로그인 성공 시 내 userId. 화면 이동 후 null 로 되돌린다 */
+    val loggedInUserId: Long? = null,
 ) {
     val canSubmit: Boolean get() = email.isNotBlank() && password.isNotEmpty()
 }
@@ -57,12 +58,12 @@ internal class LoginViewModel @Inject constructor(
         _uiState.update { it.copy(isLoading = true, formError = null) }
         viewModelScope.launch {
             when (val result = authRepository.login(state.email.trim(), state.password)) {
-                is AuthResult.Success -> _uiState.update { it.copy(isLoading = false, isLoggedIn = true) }
+                is AuthResult.Success -> _uiState.update { it.copy(isLoading = false, loggedInUserId = result.userId) }
                 is AuthResult.Failure -> _uiState.update { it.copy(isLoading = false, formError = result.error.messageRes()) }
             }
         }
     }
 
     /** 화면 이동을 한 번 처리한 뒤 호출해서, 뒤로 돌아왔을 때 다시 이동하지 않게 한다. */
-    fun onNavigated() = _uiState.update { it.copy(isLoggedIn = false) }
+    fun onNavigated() = _uiState.update { it.copy(loggedInUserId = null) }
 }

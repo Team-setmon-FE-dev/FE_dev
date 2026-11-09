@@ -84,14 +84,14 @@ import com.setmon.core.designsystem.R as DesignR
 @Composable
 internal fun SplashRoot(
     onNeedLogin: () -> Unit,
-    onLoggedIn: () -> Unit,
+    onLoggedIn: (userId: Long) -> Unit,
     viewModel: SplashViewModel = hiltViewModel(),
 ) {
     val destination by viewModel.destination.collectAsStateWithLifecycle()
     LaunchedEffect(destination) {
-        when (destination) {
+        when (val target = destination) {
             SplashDestination.Login -> onNeedLogin()
-            SplashDestination.Calendar -> onLoggedIn()
+            is SplashDestination.Calendar -> onLoggedIn(target.userId)
             null -> Unit
         }
     }

@@ -5,7 +5,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navOptions
-import com.setmon.core.model.MOCK_MY_USER_ID
 import com.setmon.feature.auth.navigation.SplashRoute
 import com.setmon.feature.auth.navigation.loginScreen
 import com.setmon.feature.auth.navigation.navigateToLogin
@@ -36,8 +35,8 @@ fun SetmonNavHost(
         popUpTo(navController.graph.id) { inclusive = true }
     }
 
-    fun goToMyCalendar() = navController.navigateToCalendar(
-        userId = MOCK_MY_USER_ID,
+    fun goToMyCalendar(userId: Long) = navController.navigateToCalendar(
+        userId = userId,
         readOnly = false,
         navOptions = clearAll(),
     )
@@ -49,16 +48,16 @@ fun SetmonNavHost(
         // S-00 → 로그인 기록이 없으면 S-01, 있으면 S-03 (인트로는 뒤로 가기로 돌아오지 않게 지운다)
         splashScreen(
             onNeedLogin = { navController.navigateToLogin(navOptions = clearAll()) },
-            onLoggedIn = { goToMyCalendar() },
+            onLoggedIn = { userId -> goToMyCalendar(userId) },
         )
 
         // S-01, S-02
         loginScreen(
-            onLoginSuccess = { goToMyCalendar() },
+            onLoginSuccess = { userId -> goToMyCalendar(userId) },
             onSignupClick = { navController.navigateToSignup() },
         )
         signupScreen(
-            onSignupComplete = { goToMyCalendar() },
+            onSignupComplete = { userId -> goToMyCalendar(userId) },
             onBack = { navController.popBackStack() },
         )
 

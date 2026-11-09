@@ -36,16 +36,16 @@ import com.setmon.feature.auth.R
 /** S-01 로그인. 피그마 `S-01 · Login`, `S-01 · Login (error)` */
 @Composable
 internal fun LoginRoot(
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (userId: Long) -> Unit,
     onSignupClick: () -> Unit,
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(uiState.isLoggedIn) {
-        if (uiState.isLoggedIn) {
+    LaunchedEffect(uiState.loggedInUserId) {
+        uiState.loggedInUserId?.let { userId ->
             viewModel.onNavigated()
-            onLoginSuccess()
+            onLoginSuccess(userId)
         }
     }
 

@@ -30,7 +30,7 @@ fun NavController.navigateToSignup(navOptions: NavOptions? = null) =
 /** 인트로를 잠깐 보여준 뒤 저장된 로그인이 없으면 [onNeedLogin], 있으면 [onLoggedIn] */
 fun NavGraphBuilder.splashScreen(
     onNeedLogin: () -> Unit,
-    onLoggedIn: () -> Unit,
+    onLoggedIn: (userId: Long) -> Unit,
 ) {
     composable<SplashRoute> {
         SplashRoot(onNeedLogin = onNeedLogin, onLoggedIn = onLoggedIn)
@@ -38,7 +38,7 @@ fun NavGraphBuilder.splashScreen(
 }
 
 fun NavGraphBuilder.loginScreen(
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (userId: Long) -> Unit,
     onSignupClick: () -> Unit,
 ) {
     composable<LoginRoute> {
@@ -48,7 +48,7 @@ fun NavGraphBuilder.loginScreen(
 
 /** 가입 성공 → 권한 안내 → [onSignupComplete]. 권한 안내는 같은 route 안의 두 번째 단계다. */
 fun NavGraphBuilder.signupScreen(
-    onSignupComplete: () -> Unit,
+    onSignupComplete: (userId: Long) -> Unit,
     onBack: () -> Unit,
 ) {
     composable<SignupRoute> {

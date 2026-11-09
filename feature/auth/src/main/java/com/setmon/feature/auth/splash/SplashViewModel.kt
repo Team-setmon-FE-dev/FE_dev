@@ -12,7 +12,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-internal enum class SplashDestination { Login, Calendar }
+internal sealed interface SplashDestination {
+    data object Login : SplashDestination
+    data class Calendar(val userId: Long) : SplashDestination
+}
 
 /**
  * S-00 브랜드 인트로 동안 저장된 로그인이 있는지 확인한다.
@@ -28,9 +31,9 @@ internal class SplashViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            val session = async { runCatching { authRepository.hasSavedSession() }.getOrDefault(false) }
+            val userId = async { runCatching { authRepository.savedUserId() }.getOrNull() }
             delay(MIN_SHOW_MS)
-            _destination.value = if (session.await()) SplashDestination.Calendar else SplashDestination.Login
+            _destination.value = userId.await()?.let { SplashDestination.Calendar(it) } ?: SplashDestination.Login
         }
     }
 

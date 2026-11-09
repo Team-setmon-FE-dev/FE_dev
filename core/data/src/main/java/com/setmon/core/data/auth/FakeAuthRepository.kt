@@ -1,7 +1,6 @@
 package com.setmon.core.data.auth
 
 import com.setmon.core.model.MOCK_MY_USER_ID
-import com.setmon.core.model.User
 import kotlinx.coroutines.delay
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -18,17 +17,17 @@ import javax.inject.Singleton
 @Singleton
 class FakeAuthRepository @Inject constructor() : AuthRepository {
 
-    /** 앱을 껐다 켜도 기억하지 않는다 → 항상 로그인 화면부터. 2주차 DataStore 토큰 저장 후 진짜로 바뀐다. */
-    private var loggedIn = false
+    /** 앱을 껐다 켜면 잊는다 → 항상 로그인 화면부터 */
+    private var loggedInUserId: Long? = null
 
-    override suspend fun hasSavedSession(): Boolean = loggedIn
+    override suspend fun savedUserId(): Long? = loggedInUserId
 
     override suspend fun login(email: String, password: String): AuthResult {
         delay(FAKE_LATENCY_MS)
         return when {
             email.equals(OFFLINE_EMAIL, ignoreCase = true) -> AuthResult.Failure(AuthError.NETWORK)
             password == WRONG_PASSWORD -> AuthResult.Failure(AuthError.INVALID_CREDENTIALS)
-            else -> AuthResult.Success(User(id = MOCK_MY_USER_ID, nickname = email.substringBefore('@'))).also { loggedIn = true }
+            else -> fakeSuccess()
         }
     }
 
@@ -37,8 +36,13 @@ class FakeAuthRepository @Inject constructor() : AuthRepository {
         return when {
             email.equals(OFFLINE_EMAIL, ignoreCase = true) -> AuthResult.Failure(AuthError.NETWORK)
             email.equals(TAKEN_EMAIL, ignoreCase = true) -> AuthResult.Failure(AuthError.EMAIL_DUPLICATED)
-            else -> AuthResult.Success(User(id = MOCK_MY_USER_ID, nickname = nickname)).also { loggedIn = true }
+            else -> fakeSuccess()
         }
+    }
+
+    private fun fakeSuccess(): AuthResult {
+        loggedInUserId = MOCK_MY_USER_ID
+        return AuthResult.Success(MOCK_MY_USER_ID)
     }
 
     companion object {

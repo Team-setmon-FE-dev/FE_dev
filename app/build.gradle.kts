@@ -32,6 +32,7 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:model"))
     implementation(project(":core:data"))
+    implementation(project(":core:network")) // Hilt 가 앱에서 core:network 의 클래스를 볼 수 있어야 한다
 
     implementation(project(":feature:auth"))
     implementation(project(":feature:calendar"))
