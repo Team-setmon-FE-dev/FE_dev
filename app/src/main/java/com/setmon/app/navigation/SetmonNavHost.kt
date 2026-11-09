@@ -83,9 +83,12 @@ fun SetmonNavHost(
 
         // S-04 (B 담당)
         captureScreen(
-            // TODO(2주차): 달력으로 돌아간 뒤 오늘 칸 새로고침
-            onUploadComplete = { navController.popBackStack() },
-            onBack = { navController.popBackStack() },
+            onUploadSuccess = { response ->
+                navController.popBackStack()
+            },
+            onBack = {
+                navController.popBackStack()
+            }
         )
 
         // S-05

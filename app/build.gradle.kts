@@ -45,6 +45,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.hilt.navigation.compose)
 
     // S-00 시스템 스플래시 (Android 11 이하에서도 같은 모양)
     implementation(libs.androidx.core.splashscreen)
