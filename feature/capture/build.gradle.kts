@@ -16,6 +16,7 @@ dependencies {
     // Jetpack Compose Material Icons
     implementation("androidx.compose.material:material-icons-extended:1.6.5")
     implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.media3.exoplayer)
 
     // CameraX
     val cameraxVersion = "1.3.2"
@@ -24,6 +25,8 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
     implementation("androidx.camera:camera-view:$cameraxVersion")
     implementation("androidx.camera:camera-video:$cameraxVersion")
+    implementation("androidx.media3:media3-exoplayer:1.3.1")
+    implementation("androidx.media3:media3-ui:1.3.1")
 
     // 네트워크 및 코루틴
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

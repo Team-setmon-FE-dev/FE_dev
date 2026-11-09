@@ -6,11 +6,10 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
-import android.media.MediaPlayer
+import android.net.Uri
 import android.os.SystemClock
 import android.util.Log
 import android.widget.Toast
-import android.widget.VideoView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
@@ -61,6 +60,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
 import com.setmon.core.designsystem.R
 import com.setmon.feature.capture.data.dto.ClipRegisterResponse
 import kotlinx.coroutines.Job
@@ -97,7 +101,7 @@ val ProgressTrackColor = Color(0xFFDDD2BA)
 enum class CaptureStep {
     CAPTURE_IDLE,    // Step 1: 대기
     RECORDING,       // Step 2: 녹화 중
-    PREVIEW,         // Step 3: 미러링/미리보기 (영상 무한 재생)
+    PREVIEW,         // Step 3: 미러링/미리보기 (ExoPlayer 원본 비율 크롭 재생)
     CHOOSE_COVER     // Step 4: 커버 선택
 }
 
@@ -295,7 +299,6 @@ fun CaptureScreen(
                                     if (event is VideoRecordEvent.Finalize) {
                                         if (!event.hasError()) {
                                             val elapsedMs = SystemClock.elapsedRealtime() - recordingStartTimeMs
-                                            // 1초 미만인 경우 (1000ms 미만) 촬영 거부 및 삭제
                                             if (elapsedMs < 1000L) {
                                                 videoFile.delete()
                                                 Toast.makeText(context, "1초 이상 촬영해주세요.", Toast.LENGTH_SHORT).show()
@@ -621,8 +624,9 @@ private fun RecordButton(
 }
 
 // ==========================================
-// 6. Preview Screen Component (비디오 무한 루핑 재생)
+// 6. Preview Screen Component (ExoPlayer - 원본 카메라 시야/크롭 100% 동기화)
 // ==========================================
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 private fun PreviewScreen(
     recordDuration: Float,
@@ -633,20 +637,37 @@ private fun PreviewScreen(
     onUpload: () -> Unit,
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
     val currentHourText = remember { SimpleDateFormat("HH:00", Locale.KOREA).format(Date()) }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    // ExoPlayer 객체 생성 및 관리
+    val exoPlayer = remember(videoFile) {
         if (videoFile != null && videoFile.exists()) {
+            ExoPlayer.Builder(context).build().apply {
+                val mediaItem = MediaItem.fromUri(Uri.fromFile(videoFile))
+                setMediaItem(mediaItem)
+                repeatMode = Player.REPEAT_MODE_ONE // 무한 반복
+                prepare()
+                playWhenReady = true
+            }
+        } else null
+    }
+
+    DisposableEffect(exoPlayer) {
+        onDispose {
+            exoPlayer?.release()
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (exoPlayer != null) {
             AndroidView(
                 factory = { ctx ->
-                    VideoView(ctx).apply {
-                        setVideoPath(videoFile.absolutePath)
-                        setOnPreparedListener { mediaPlayer ->
-                            mediaPlayer.isLooping = true
-                            // 원본 비율에 맞춰 확대(Crop) 없이 맞춤
-                            mediaPlayer.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT)
-                            mediaPlayer.start()
-                        }
+                    PlayerView(ctx).apply {
+                        player = exoPlayer
+                        useController = false // 컨트롤러 바 감추기
+                        // PreviewView의 FILL_CENTER와 완전히 동등한 Center Crop 비율 매핑
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                     }
                 },
                 modifier = Modifier.fillMaxSize()
