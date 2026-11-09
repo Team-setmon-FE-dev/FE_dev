@@ -6,11 +6,6 @@ package com.setmon.core.network
  * 없으면 에뮬레이터에서 내 PC의 localhost 를 가리키는 10.0.2.2:8080 을 쓴다.
  */
 internal object NetworkConfig {
-<<<<<<< HEAD
-    // C가 서버 주소를 정하면 바꾼다
-    const val BASE_URL = "http://192.168.0.65:8080/"
-=======
     /** Retrofit 은 주소가 / 로 끝나야 한다 */
     val BASE_URL: String = BuildConfig.API_BASE_URL.trimEnd('/') + "/"
->>>>>>> origin/main
 }

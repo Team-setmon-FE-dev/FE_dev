@@ -45,9 +45,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)
-<<<<<<< HEAD
     implementation(libs.androidx.hilt.navigation.compose)
-=======
 
     // S-00 시스템 스플래시 (Android 11 이하에서도 같은 모양)
     implementation(libs.androidx.core.splashscreen)
@@ -56,7 +54,6 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
 
->>>>>>> origin/main
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
