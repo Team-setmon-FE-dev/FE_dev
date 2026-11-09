@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="calendar_friends">친구</string>
-    <string name="calendar_my_page">내 정보</string>
+    <string name="calendar_my_page">마이페이지</string>
     <string name="calendar_friend_title">친구 달력</string>
     <string name="calendar_previous_month">이전 달</string>
     <string name="calendar_next_month">다음 달</string>

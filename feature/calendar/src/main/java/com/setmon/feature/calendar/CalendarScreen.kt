@@ -41,6 +41,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.setmon.core.designsystem.component.BookmarkTab
 import com.setmon.core.designsystem.component.CalendarDayCell
 import com.setmon.core.designsystem.component.SetmonButton
 import com.setmon.core.designsystem.component.SetmonButtonType
@@ -55,7 +56,7 @@ import java.util.Locale
 private val SWIPE_THRESHOLD = 64.dp
 private const val BACKGROUND_OVERLAY_ALPHA = 0.53f // 피그마의 Overlay 28% + BackgroundFilter 35%
 
-/** S-03 달력. 피그마 `S-03 · Main calendar`. 친구 탭은 친구 API 연결(3주차) 때 붙인다 */
+/** S-03 달력. 피그마 `S-03 · Main calendar` */
 @Composable
 internal fun CalendarRoot(
     readOnly: Boolean,
@@ -124,20 +125,17 @@ private fun CalendarScreen(
                     readOnly = true,
                 )
             } else {
+                // 책갈피 탭. 친구별 탭은 친구 API 연결(3주차) 때 + 앞에 추가한다
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                    horizontalArrangement = Arrangement.End,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    SetmonButton(
-                        text = stringResource(R.string.calendar_friends),
-                        onClick = onFriendClick,
-                        type = SetmonButtonType.Text,
-                    )
-                    SetmonButton(
-                        text = stringResource(R.string.calendar_my_page),
+                    BookmarkTab(
+                        label = stringResource(R.string.calendar_my_page),
+                        selected = true,
                         onClick = onMyPageClick,
-                        type = SetmonButtonType.Text,
                     )
+                    BookmarkTab(label = "+", selected = false, onClick = onFriendClick)
                 }
             }
 
