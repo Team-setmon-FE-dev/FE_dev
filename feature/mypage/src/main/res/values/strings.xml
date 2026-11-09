@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mypage_title">마이페이지</string>
+    <string name="mypage_days_recorded">기록한 날</string>
+    <string name="mypage_friend_code">내 친구 코드</string>
+    <string name="mypage_copy">복사</string>
+    <string name="mypage_copied">복사됨</string>
+    <string name="mypage_account">계정</string>
+    <string name="mypage_logout">로그아웃</string>
+    <string name="mypage_logout_failed">로그아웃하지 못했어요. 다시 시도해 주세요</string>
+    <string name="mypage_error_network">인터넷 연결을 확인해 주세요</string>
+    <string name="mypage_error_unknown">내 정보를 불러오지 못했어요.\n잠시 후 다시 시도해 주세요</string>
+    <string name="mypage_retry">다시 시도</string>
+</resources>

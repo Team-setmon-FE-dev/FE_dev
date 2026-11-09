@@ -4,7 +4,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
-import com.setmon.feature.friend.FriendScreen
+import com.setmon.feature.friend.FriendRoot
 import kotlinx.serialization.Serializable
 
 /** S-07 친구 — route: friend */
@@ -22,6 +22,6 @@ fun NavGraphBuilder.friendScreen(
     onBack: () -> Unit,
 ) {
     composable<FriendRoute> {
-        FriendScreen(onFriendCalendarClick = onFriendCalendarClick, onBack = onBack)
+        FriendRoot(onFriendCalendarClick = onFriendCalendarClick, onBack = onBack)
     }
 }

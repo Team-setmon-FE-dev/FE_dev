@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="friend_title">친구</string>
+    <string name="friend_my_code">내 친구 코드</string>
+    <string name="friend_copy">복사</string>
+    <string name="friend_copied">복사됨</string>
+    <string name="friend_share">공유</string>
+    <string name="friend_share_text">setmon에서 친구 해요! 내 코드: %1$s</string>
+    <string name="friend_add">친구 추가</string>
+    <string name="friend_code_hint">친구 코드 입력</string>
+    <string name="friend_send">요청</string>
+    <string name="friend_requests">받은 요청</string>
+    <string name="friend_request_subtitle">친구가 되고 싶어 해요</string>
+    <string name="friend_accept">수락</string>
+    <string name="friend_decline">거절</string>
+    <string name="friend_list">친구 목록</string>
+    <string name="friend_remove">삭제</string>
+    <string name="friend_empty">아직 친구가 없어요</string>
+    <string name="friend_open_hint">친구를 누르면 달력을 볼 수 있어요 (읽기 전용)</string>
+    <string name="friend_remove_title">%1$s님을 삭제할까요?</string>
+    <string name="friend_remove_message">서로의 달력을 더 이상 볼 수 없어요. 친구 코드로 다시 추가할 수 있어요.</string>
+    <string name="friend_cancel">취소</string>
+    <string name="friend_retry">다시 시도</string>
+    <string name="friend_request_sent">친구 요청을 보냈어요</string>
+    <string name="friend_became_friends">바로 친구가 됐어요</string>
+    <string name="friend_error_code_not_found">없는 코드예요. 확인 후 다시 입력해 주세요</string>
+    <string name="friend_error_self">내 코드로는 요청할 수 없어요</string>
+    <string name="friend_error_already">이미 친구예요</string>
+    <string name="friend_error_duplicate">이미 요청을 보냈거나 받았어요</string>
+    <string name="friend_error_network">인터넷 연결을 확인해 주세요</string>
+    <string name="friend_error_unknown">잠시 후 다시 시도해 주세요</string>
+</resources>
