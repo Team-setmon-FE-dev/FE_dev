@@ -1,5 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.Setmon" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- 앱 기본 테마. 창 배경을 background 색으로 둬서 스플래시 → 첫 화면이 끊기지 않게 한다 -->
+    <style name="Theme.Setmon" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/setmon_background</item>
+    </style>
+
+    <!-- S-00 시스템 스플래시 (Android 12+ 는 OS가, 그 아래는 core-splashscreen 이 똑같이 그려준다) -->
+    <style name="Theme.Setmon.Starting" parent="Theme.SplashScreen.IconBackground">
+        <item name="windowSplashScreenBackground">@color/setmon_background</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/setmon_surface</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.Setmon</item>
+    </style>
 </resources>

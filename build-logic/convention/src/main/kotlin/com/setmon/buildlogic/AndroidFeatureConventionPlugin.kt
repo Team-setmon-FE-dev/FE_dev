@@ -8,6 +8,7 @@ import org.gradle.kotlin.dsl.project
 /**
  * 모든 feature 모듈의 기본 설정.
  * - Compose 화면 + Hilt + type-safe 화면 이동(@Serializable route)
+ * - ViewModel(hiltViewModel) + Flow 상태 수집
  * - core 모듈 3개를 자동으로 연결한다.
  * - feature끼리는 연결하지 않는다. 화면 이동은 app 모듈의 NavHost가 이어준다.
  */
@@ -25,6 +26,13 @@ class AndroidFeatureConventionPlugin : Plugin<Project> {
 
                 add("implementation", libs.findLibrary("androidx-navigation-compose").get())
                 add("implementation", libs.findLibrary("kotlinx-serialization-json").get())
+
+                // 화면 상태: hiltViewModel(), collectAsStateWithLifecycle()
+                add("implementation", libs.findLibrary("androidx-hilt-navigation-compose").get())
+                add("implementation", libs.findLibrary("androidx-lifecycle-runtime-compose").get())
+                add("implementation", libs.findLibrary("androidx-lifecycle-viewmodel-compose").get())
+                add("implementation", libs.findLibrary("kotlinx-coroutines-core").get())
+                add("testImplementation", libs.findLibrary("junit").get())
             }
         }
     }

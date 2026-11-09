@@ -4,7 +4,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
-import com.setmon.feature.mypage.MyPageScreen
+import com.setmon.feature.mypage.MyPageRoot
 import kotlinx.serialization.Serializable
 
 /** S-12 마이페이지 — route: mypage */
@@ -19,6 +19,6 @@ fun NavGraphBuilder.myPageScreen(
     onBack: () -> Unit,
 ) {
     composable<MyPageRoute> {
-        MyPageScreen(onLogout = onLogout, onBack = onBack)
+        MyPageRoot(onLogout = onLogout, onBack = onBack)
     }
 }

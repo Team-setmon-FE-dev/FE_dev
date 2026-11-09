@@ -1,33 +1,358 @@
 package com.setmon.feature.calendar
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import com.setmon.core.designsystem.component.PlaceholderButton
-import com.setmon.core.designsystem.component.PlaceholderScreen
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringArrayResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.setmon.core.designsystem.component.BookmarkTab
+import com.setmon.core.designsystem.component.CalendarDayCell
+import com.setmon.core.designsystem.component.SetmonButton
+import com.setmon.core.designsystem.component.SetmonButtonType
+import com.setmon.core.designsystem.component.SetmonTopBar
+import com.setmon.core.designsystem.component.TodayCard
+import com.setmon.core.designsystem.theme.SetmonTheme
 import java.time.LocalDate
+import java.time.YearMonth
+import java.time.format.TextStyle as DateTextStyle
+import java.util.Locale
 
+private val SWIPE_THRESHOLD = 64.dp
+private const val BACKGROUND_OVERLAY_ALPHA = 0.53f // 피그마의 Overlay 28% + BackgroundFilter 35%
+
+/** S-03 달력. 피그마 `S-03 · Main calendar` */
 @Composable
-internal fun CalendarScreen(
-    userId: Long,
+internal fun CalendarRoot(
     readOnly: Boolean,
     onDayClick: (date: String) -> Unit,
     onCaptureClick: () -> Unit,
     onFriendClick: () -> Unit,
     onMyPageClick: () -> Unit,
     onBack: () -> Unit,
+    viewModel: CalendarViewModel = hiltViewModel(),
 ) {
-    PlaceholderScreen(
-        screenId = "S-03",
-        title = if (readOnly) "친구 달력 (읽기 전용)" else "메인 달력",
-        description = "userId = $userId, readOnly = $readOnly",
-    ) {
-        PlaceholderButton(text = "오늘 하루 상세 보기") { onDayClick(LocalDate.now().toString()) }
-        if (readOnly) {
-            // 읽기 전용이면 촬영·친구·마이페이지 대신 뒤로가기만
-            PlaceholderButton(text = "뒤로", onClick = onBack)
-        } else {
-            PlaceholderButton(text = "촬영", onClick = onCaptureClick)
-            PlaceholderButton(text = "친구", onClick = onFriendClick)
-            PlaceholderButton(text = "마이페이지", onClick = onMyPageClick)
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
+
+    CalendarScreen(
+        uiState = uiState,
+        readOnly = readOnly,
+        onPreviousMonth = viewModel::showPreviousMonth,
+        onNextMonth = viewModel::showNextMonth,
+        onRetry = viewModel::retry,
+        onDayClick = onDayClick,
+        onCaptureClick = onCaptureClick,
+        onFriendClick = onFriendClick,
+        onMyPageClick = onMyPageClick,
+        onBack = onBack,
+    )
+}
+
+@Composable
+private fun CalendarScreen(
+    uiState: CalendarUiState,
+    readOnly: Boolean,
+    onPreviousMonth: () -> Unit,
+    onNextMonth: () -> Unit,
+    onRetry: () -> Unit,
+    onDayClick: (date: String) -> Unit,
+    onCaptureClick: () -> Unit,
+    onFriendClick: () -> Unit,
+    onMyPageClick: () -> Unit,
+    onBack: () -> Unit,
+) {
+    val colors = SetmonTheme.colors
+    val shape = SetmonTheme.shapes.thumbnail
+    Box(Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(R.drawable.calendar_background),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(colors.background.copy(alpha = BACKGROUND_OVERLAY_ALPHA)),
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .systemBarsPadding()
+                .verticalScroll(rememberScrollState()),
+        ) {
+            if (readOnly) {
+                SetmonTopBar(
+                    title = stringResource(R.string.calendar_friend_title),
+                    onBack = onBack,
+                    readOnly = true,
+                )
+            } else {
+                // 책갈피 탭. 친구별 탭은 친구 API 연결(3주차) 때 + 앞에 추가한다
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    BookmarkTab(
+                        label = stringResource(R.string.calendar_my_page),
+                        selected = true,
+                        onClick = onMyPageClick,
+                    )
+                    BookmarkTab(label = "+", selected = false, onClick = onFriendClick)
+                }
+            }
+
+            MonthHeading(month = uiState.month, onPrevious = onPreviousMonth, onNext = onNextMonth)
+
+            Box(Modifier.fillMaxWidth().padding(top = 36.dp)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = SetmonTheme.spacing.screenHorizontal)
+                        .shadow(elevation = 4.dp, shape = shape)
+                        .background(colors.surface, shape)
+                        .padding(horizontal = 4.dp, vertical = 12.dp),
+                ) {
+                    WeekdayHeader()
+                    Rule()
+                    if (uiState.isLoading) {
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = colors.primary,
+                            trackColor = colors.outline,
+                        )
+                    }
+                    CalendarWeeks(
+                        weeks = uiState.weeks,
+                        onDayClick = onDayClick,
+                        onSwipeToPrevious = onPreviousMonth,
+                        onSwipeToNext = onNextMonth,
+                    )
+                    uiState.error?.let { error ->
+                        Text(
+                            text = stringResource(error),
+                            style = SetmonTheme.typography.label,
+                            color = colors.error,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        )
+                        SetmonButton(
+                            text = stringResource(R.string.calendar_retry),
+                            onClick = onRetry,
+                            type = SetmonButtonType.Text,
+                            modifier = Modifier.align(Alignment.CenterHorizontally),
+                        )
+                    }
+                    Rule()
+                    TodayCard(
+                        title = stringResource(
+                            R.string.calendar_today_title,
+                            uiState.today.monthValue,
+                            uiState.today.dayOfMonth,
+                        ),
+                        clipCount = uiState.todayClipCount,
+                        readOnly = readOnly,
+                        onRecordClick = onCaptureClick,
+                        recordLabel = stringResource(R.string.calendar_record),
+                        clipCountLabel = stringResource(R.string.calendar_clip_count, uiState.todayClipCount),
+                    )
+                }
+                // 금속 클립이 달력 종이 윗부분을 집고 있는 모양
+                Image(
+                    painter = painterResource(R.drawable.calendar_clip),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .offset(y = (-30).dp)
+                        .size(width = 72.dp, height = 36.dp),
+                )
+            }
+
+            Text(
+                text = "setmon",
+                style = SetmonTheme.typography.title,
+                color = colors.primary,
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .padding(top = 12.dp, end = 20.dp, bottom = 16.dp),
+            )
         }
+    }
+}
+
+@Composable
+private fun MonthHeading(month: YearMonth, onPrevious: () -> Unit, onNext: () -> Unit) {
+    val colors = SetmonTheme.colors
+    val typography = SetmonTheme.typography
+    val previousLabel = stringResource(R.string.calendar_previous_month)
+    val nextLabel = stringResource(R.string.calendar_next_month)
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(
+                onClick = onPrevious,
+                modifier = Modifier.semantics { contentDescription = previousLabel },
+            ) {
+                Text("‹", style = typography.title, color = colors.textPrimary)
+            }
+            Text(
+                text = month.month.getDisplayName(DateTextStyle.FULL, Locale.ENGLISH),
+                style = typography.display,
+                color = colors.textPrimary,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(
+                onClick = onNext,
+                modifier = Modifier.semantics { contentDescription = nextLabel },
+            ) {
+                Text("›", style = typography.title, color = colors.textPrimary)
+            }
+        }
+        Box(
+            modifier = Modifier
+                .rotate(-2f)
+                .background(colors.accent)
+                .padding(horizontal = 12.dp),
+        ) {
+            Text(text = month.year.toString(), style = typography.title, color = colors.textPrimary)
+        }
+    }
+}
+
+@Composable
+private fun WeekdayHeader() {
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        stringArrayResource(R.array.calendar_weekdays).forEach { weekday ->
+            Text(
+                text = weekday,
+                style = SetmonTheme.typography.label,
+                color = SetmonTheme.colors.textSecondary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CalendarWeeks(
+    weeks: List<List<CalendarCell>>,
+    onDayClick: (date: String) -> Unit,
+    onSwipeToPrevious: () -> Unit,
+    onSwipeToNext: () -> Unit,
+) {
+    val swipeThresholdPx = with(LocalDensity.current) { SWIPE_THRESHOLD.toPx() }
+    val toPrevious by rememberUpdatedState(onSwipeToPrevious)
+    val toNext by rememberUpdatedState(onSwipeToNext)
+    Column(
+        modifier = Modifier.pointerInput(swipeThresholdPx) {
+            var dragged = 0f
+            detectHorizontalDragGestures(
+                onDragStart = { dragged = 0f },
+                onHorizontalDrag = { _, amount -> dragged += amount },
+                onDragEnd = {
+                    when {
+                        dragged > swipeThresholdPx -> toPrevious()
+                        dragged < -swipeThresholdPx -> toNext()
+                    }
+                },
+            )
+        },
+    ) {
+        weeks.forEach { week ->
+            Row(Modifier.fillMaxWidth().padding(vertical = 1.dp)) {
+                week.forEach { cell ->
+                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        CalendarDayCell(
+                            day = cell.date?.dayOfMonth,
+                            state = cell.state,
+                            thumbnailUrl = cell.thumbnailUrl,
+                            clipCount = cell.clipCount,
+                            onClick = cell.date?.let { date -> { onDayClick(date.toString()) } },
+                        )
+                    }
+                }
+            }
+            Rule()
+        }
+    }
+}
+
+@Composable
+private fun Rule() {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(SetmonTheme.colors.outline),
+    )
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFFF5F0E6, heightDp = 760)
+@Composable
+private fun CalendarScreenPreview() {
+    val today = LocalDate.of(2026, 11, 10)
+    val month = YearMonth.from(today)
+    SetmonTheme {
+        CalendarScreen(
+            uiState = CalendarUiState(
+                month = month,
+                today = today,
+                weeks = buildCalendarWeeks(month, today, emptyList()),
+            ),
+            readOnly = false,
+            onPreviousMonth = {},
+            onNextMonth = {},
+            onRetry = {},
+            onDayClick = {},
+            onCaptureClick = {},
+            onFriendClick = {},
+            onMyPageClick = {},
+            onBack = {},
+        )
     }
 }

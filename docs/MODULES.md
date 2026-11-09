@@ -28,6 +28,8 @@ core:data ──▶ core:network, core:model
 core:network ──▶ core:model
 ```
 
+- 예외: `feature:capture`는 영상 업로드 때문에 `core:network`의 `@AuthedOkHttp`, `@ApiBaseUrl`만 직접 쓴다. S3 주소에는 토큰이 붙지 않는다.
+
 - **feature끼리는 서로 의존하지 않는다.** `feature:capture`에서 `feature:calendar`를 import하면 안 된다.
   다른 화면으로 가야 하면 콜백(`onUploadComplete`, `onBack` 등)을 호출하고, 실제 이동은 `app`의 `SetmonNavHost`가 한다.
 - 새 라이브러리는 **`gradle/libs.versions.toml`에 먼저 추가**하고, 모듈의 `build.gradle.kts`에서 `libs.xxx`로 쓴다. 버전을 모듈 파일에 직접 적지 않는다.
@@ -80,6 +82,25 @@ fun NavGraphBuilder.captureScreen(
 2. A에게 받은 `google-services.json`을 `app/` 폴더에 넣기 (git에 올라가지 않는 파일. 지금은 없어도 빌드되지만, Firebase를 붙인 뒤부터는 꼭 필요)
 3. Gradle sync → 에뮬레이터나 폰에서 ▶ 실행
 4. 로그인(Mock) → 달력 → 촬영 버튼으로 촬영 화면이 열리면 정상
+
+### Mock 로그인·가입 (서버 연결 전, `core:data` FakeAuthRepository)
+
+- 형식만 맞으면 성공한다: 이메일 형식, 비밀번호 8자 이상, 닉네임 2~10자
+- 일부러 실패를 보고 싶을 때
+  - 가입 이메일 `taken@setmon.app` → "이미 가입된 이메일이에요"
+  - 로그인 비밀번호 `wrongpassword` → "이메일 또는 비밀번호가 맞지 않아요"
+  - 이메일 `offline@setmon.app` → 네트워크 오류
+- 실서버로 바꿀 때는 `core/data/.../di/DataModule.kt` 의 `@Binds` 한 줄만 바꾼다
+
+### 앱 첫 화면 (S-00)
+
+시스템 스플래시(종이색 + 로고 A) → 브랜드 인트로(바인더·영수증·폴라로이드, 약 1초) → 저장된 로그인이 없으면 S-01, 있으면 S-03.
+Mock 단계에서는 로그인 기록을 기억하지 않아 항상 S-01 로 간다(2주차 DataStore 토큰 저장 후 자동 로그인).
+
+### FCM 토큰 확인
+
+`app/google-services.json` 을 넣고 실행 → Logcat 에서 `SetmonFCM` 으로 검색하면 `FCM token = ...` 이 찍힌다.
+파일이 없으면 "Firebase 미설정" 경고만 찍히고 앱은 그대로 동작한다.
 
 ## 7. 버전 정보
 

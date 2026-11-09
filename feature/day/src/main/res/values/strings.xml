@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="day_make_vlog">지금 브이로그 만들기</string>
+    <string name="day_vlog_started">브이로그를 만들고 있어요. 잠시 후 달력에서 확인해 주세요</string>
+    <string name="day_vlog_already_done">이미 최신 브이로그가 있어요</string>
+    <string name="day_vlog_error_no_clips">오늘 올린 클립이 없어요</string>
+    <string name="day_vlog_error_network">인터넷 연결을 확인해 주세요</string>
+    <string name="day_vlog_error_unknown">잠시 후 다시 시도해 주세요</string>
+</resources>

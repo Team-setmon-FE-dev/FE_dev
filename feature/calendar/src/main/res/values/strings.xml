@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="calendar_my_page">마이페이지</string>
+    <string name="calendar_friend_title">친구 달력</string>
+    <string name="calendar_previous_month">이전 달</string>
+    <string name="calendar_next_month">다음 달</string>
+    <string name="calendar_today_title">오늘, %1$d월 %2$d일</string>
+    <string name="calendar_clip_count">%1$d개</string>
+    <string name="calendar_record">촬영하기</string>
+    <string name="calendar_retry">다시 시도</string>
+    <string name="calendar_error_network">인터넷 연결을 확인해 주세요</string>
+    <string name="calendar_error_unknown">달력을 불러오지 못했어요</string>
+    <string-array name="calendar_weekdays">
+        <item>일</item>
+        <item>월</item>
+        <item>화</item>
+        <item>수</item>
+        <item>목</item>
+        <item>금</item>
+        <item>토</item>
+    </string-array>
+</resources>
