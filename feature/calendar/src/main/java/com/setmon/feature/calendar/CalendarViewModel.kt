@@ -9,6 +9,7 @@ import com.setmon.core.data.calendar.CalendarError
 import com.setmon.core.data.calendar.CalendarMonthResult
 import com.setmon.core.data.calendar.CalendarRepository
 import com.setmon.core.model.CalendarDaySummary
+import com.setmon.core.model.todayInKorea
 import com.setmon.feature.calendar.navigation.CalendarRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -41,7 +42,7 @@ internal class CalendarViewModel @Inject constructor(
     private var loadJob: Job? = null
 
     private val _uiState = MutableStateFlow(
-        LocalDate.now().let { today ->
+        todayInKorea().let { today ->
             val month = YearMonth.from(today)
             CalendarUiState(month = month, today = today, weeks = buildCalendarWeeks(month, today, emptyList()))
         },
@@ -50,7 +51,7 @@ internal class CalendarViewModel @Inject constructor(
 
     /** 화면에 돌아올 때마다 부른다. 촬영 후 새 클립과 만료된 사진 주소가 여기서 갱신된다 */
     fun refresh() {
-        val today = LocalDate.now()
+        val today = todayInKorea()
         _uiState.update { it.copy(today = today) }
         val visibleMonth = _uiState.value.month
         load(visibleMonth)

@@ -1,5 +1,6 @@
 package com.setmon.feature.calendar
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -9,7 +10,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -24,7 +27,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -48,6 +53,7 @@ import java.time.format.TextStyle as DateTextStyle
 import java.util.Locale
 
 private val SWIPE_THRESHOLD = 64.dp
+private const val BACKGROUND_OVERLAY_ALPHA = 0.53f // 피그마의 Overlay 28% + BackgroundFilter 35%
 
 /** S-03 달력. 피그마 `S-03 · Main calendar`. 친구 탭은 친구 API 연결(3주차) 때 붙인다 */
 @Composable
@@ -93,89 +99,121 @@ private fun CalendarScreen(
 ) {
     val colors = SetmonTheme.colors
     val shape = SetmonTheme.shapes.thumbnail
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.background)
-            .systemBarsPadding()
-            .verticalScroll(rememberScrollState()),
-    ) {
-        if (readOnly) {
-            SetmonTopBar(
-                title = stringResource(R.string.calendar_friend_title),
-                onBack = onBack,
-                readOnly = true,
-            )
-        } else {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                SetmonButton(
-                    text = stringResource(R.string.calendar_friends),
-                    onClick = onFriendClick,
-                    type = SetmonButtonType.Text,
-                )
-                SetmonButton(
-                    text = stringResource(R.string.calendar_my_page),
-                    onClick = onMyPageClick,
-                    type = SetmonButtonType.Text,
-                )
-            }
-        }
-
-        MonthHeading(month = uiState.month, onPrevious = onPreviousMonth, onNext = onNextMonth)
-
+    Box(Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(R.drawable.calendar_background),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(colors.background.copy(alpha = BACKGROUND_OVERLAY_ALPHA)),
+        )
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = SetmonTheme.spacing.screenHorizontal, vertical = 16.dp)
-                .shadow(elevation = 4.dp, shape = shape)
-                .background(colors.surface, shape)
-                .padding(horizontal = 4.dp, vertical = 12.dp),
+                .fillMaxSize()
+                .systemBarsPadding()
+                .verticalScroll(rememberScrollState()),
         ) {
-            WeekdayHeader()
-            Rule()
-            if (uiState.isLoading) {
-                LinearProgressIndicator(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = colors.primary,
-                    trackColor = colors.outline,
+            if (readOnly) {
+                SetmonTopBar(
+                    title = stringResource(R.string.calendar_friend_title),
+                    onBack = onBack,
+                    readOnly = true,
+                )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    SetmonButton(
+                        text = stringResource(R.string.calendar_friends),
+                        onClick = onFriendClick,
+                        type = SetmonButtonType.Text,
+                    )
+                    SetmonButton(
+                        text = stringResource(R.string.calendar_my_page),
+                        onClick = onMyPageClick,
+                        type = SetmonButtonType.Text,
+                    )
+                }
+            }
+
+            MonthHeading(month = uiState.month, onPrevious = onPreviousMonth, onNext = onNextMonth)
+
+            Box(Modifier.fillMaxWidth().padding(top = 36.dp)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = SetmonTheme.spacing.screenHorizontal)
+                        .shadow(elevation = 4.dp, shape = shape)
+                        .background(colors.surface, shape)
+                        .padding(horizontal = 4.dp, vertical = 12.dp),
+                ) {
+                    WeekdayHeader()
+                    Rule()
+                    if (uiState.isLoading) {
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = colors.primary,
+                            trackColor = colors.outline,
+                        )
+                    }
+                    CalendarWeeks(
+                        weeks = uiState.weeks,
+                        onDayClick = onDayClick,
+                        onSwipeToPrevious = onPreviousMonth,
+                        onSwipeToNext = onNextMonth,
+                    )
+                    uiState.error?.let { error ->
+                        Text(
+                            text = stringResource(error),
+                            style = SetmonTheme.typography.label,
+                            color = colors.error,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        )
+                        SetmonButton(
+                            text = stringResource(R.string.calendar_retry),
+                            onClick = onRetry,
+                            type = SetmonButtonType.Text,
+                            modifier = Modifier.align(Alignment.CenterHorizontally),
+                        )
+                    }
+                    Rule()
+                    TodayCard(
+                        title = stringResource(
+                            R.string.calendar_today_title,
+                            uiState.today.monthValue,
+                            uiState.today.dayOfMonth,
+                        ),
+                        clipCount = uiState.todayClipCount,
+                        readOnly = readOnly,
+                        onRecordClick = onCaptureClick,
+                        recordLabel = stringResource(R.string.calendar_record),
+                        clipCountLabel = stringResource(R.string.calendar_clip_count, uiState.todayClipCount),
+                    )
+                }
+                // 금속 클립이 달력 종이 윗부분을 집고 있는 모양
+                Image(
+                    painter = painterResource(R.drawable.calendar_clip),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .offset(y = (-30).dp)
+                        .size(width = 72.dp, height = 36.dp),
                 )
             }
-            CalendarWeeks(
-                weeks = uiState.weeks,
-                onDayClick = onDayClick,
-                onSwipeToPrevious = onPreviousMonth,
-                onSwipeToNext = onNextMonth,
-            )
-            uiState.error?.let { error ->
-                Text(
-                    text = stringResource(error),
-                    style = SetmonTheme.typography.label,
-                    color = colors.error,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                )
-                SetmonButton(
-                    text = stringResource(R.string.calendar_retry),
-                    onClick = onRetry,
-                    type = SetmonButtonType.Text,
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                )
-            }
-            Rule()
-            TodayCard(
-                title = stringResource(
-                    R.string.calendar_today_title,
-                    uiState.today.monthValue,
-                    uiState.today.dayOfMonth,
-                ),
-                clipCount = uiState.todayClipCount,
-                readOnly = readOnly,
-                onRecordClick = onCaptureClick,
-                recordLabel = stringResource(R.string.calendar_record),
-                clipCountLabel = stringResource(R.string.calendar_clip_count, uiState.todayClipCount),
+
+            Text(
+                text = "setmon",
+                style = SetmonTheme.typography.title,
+                color = colors.primary,
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .padding(top = 12.dp, end = 20.dp, bottom = 16.dp),
             )
         }
     }

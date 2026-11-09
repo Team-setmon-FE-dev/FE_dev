@@ -1,19 +1,19 @@
 package com.setmon.core.data.calendar
 
 import com.setmon.core.model.CalendarDaySummary
-import java.time.LocalDate
+import com.setmon.core.model.todayInKorea
 import java.time.YearMonth
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
  * 서버·업로드 없이 달력 칸을 돌려보기 위한 가짜 구현.
- * 사진 주소는 일부러 없는 주소라서 칸에 회색 네모로 보인다.
+ * 썸네일은 debug 빌드에만 들어 있는 샘플 사진이다.
  */
 @Singleton
 class FakeCalendarRepository @Inject constructor() : CalendarRepository {
     override suspend fun getMonth(userId: Long, month: YearMonth): CalendarMonthResult {
-        val today = LocalDate.now()
+        val today = todayInKorea()
         val pastDays = (1..month.lengthOfMonth())
             .map(month::atDay)
             .filter { it.isBefore(today) && it.dayOfMonth % 3 == 1 }
@@ -27,6 +27,6 @@ class FakeCalendarRepository @Inject constructor() : CalendarRepository {
     }
 
     private companion object {
-        const val FAKE_THUMBNAIL = "fake://thumbnail"
+        const val FAKE_THUMBNAIL = "android.resource://com.setmon.app/drawable/sample_clip_thumbnail"
     }
 }
