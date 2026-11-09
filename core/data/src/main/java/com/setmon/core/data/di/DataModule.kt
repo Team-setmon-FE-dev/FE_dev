@@ -8,6 +8,8 @@ import com.setmon.core.data.friend.FakeFriendRepository
 import com.setmon.core.data.friend.FriendRepository
 import com.setmon.core.data.user.DefaultUserRepository
 import com.setmon.core.data.user.UserRepository
+import com.setmon.core.data.vlog.DefaultVlogRepository
+import com.setmon.core.data.vlog.VlogRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -38,4 +40,8 @@ internal abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindFriendRepository(impl: FakeFriendRepository): FriendRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindVlogRepository(impl: DefaultVlogRepository): VlogRepository
 }
