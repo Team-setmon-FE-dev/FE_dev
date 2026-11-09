@@ -40,6 +40,11 @@ class FakeAuthRepository @Inject constructor() : AuthRepository {
         }
     }
 
+    override suspend fun logout(): Boolean {
+        loggedInUserId = null
+        return true
+    }
+
     private fun fakeSuccess(): AuthResult {
         loggedInUserId = MOCK_MY_USER_ID
         return AuthResult.Success(MOCK_MY_USER_ID)

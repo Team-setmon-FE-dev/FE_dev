@@ -12,6 +12,9 @@ interface AuthRepository {
     suspend fun login(email: String, password: String): AuthResult
 
     suspend fun signup(email: String, password: String, nickname: String): AuthResult
+
+    /** 기기의 로그인을 지운다. 저장소 오류로 지우지 못하면 false */
+    suspend fun logout(): Boolean
 }
 
 sealed interface AuthResult {

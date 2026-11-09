@@ -23,6 +23,13 @@ class DefaultAuthRepository @Inject constructor(
     override suspend fun signup(email: String, password: String, nickname: String): AuthResult =
         remote.signup(email, password, nickname).toAuthResult()
 
+    override suspend fun logout(): Boolean = try {
+        tokenStore.clear()
+        true
+    } catch (e: IOException) {
+        false
+    }
+
     private suspend fun ApiResult<AuthTokens>.toAuthResult(): AuthResult = when (this) {
         is ApiResult.Success -> try {
             tokenStore.save(data)
