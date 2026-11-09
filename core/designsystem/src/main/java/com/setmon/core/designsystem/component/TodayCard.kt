@@ -27,6 +27,7 @@ fun TodayCard(
     onRecordClick: () -> Unit,
     modifier: Modifier = Modifier,
     recordLabel: String = "Record a moment",
+    clipCountLabel: String = if (clipCount == 1) "1 clip" else "$clipCount clips",
 ) {
     val colors = SetmonTheme.colors
     Column(
@@ -52,7 +53,7 @@ fun TodayCard(
                     .padding(horizontal = 12.dp, vertical = 6.dp),
             ) {
                 Text(
-                    text = if (clipCount == 1) "1 clip" else "$clipCount clips",
+                    text = clipCountLabel,
                     style = SetmonTheme.typography.label,
                     color = colors.onPrimary,
                 )

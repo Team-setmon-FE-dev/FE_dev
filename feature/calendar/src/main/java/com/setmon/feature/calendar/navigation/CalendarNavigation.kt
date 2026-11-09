@@ -5,7 +5,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
-import com.setmon.feature.calendar.CalendarScreen
+import com.setmon.feature.calendar.CalendarRoot
 import kotlinx.serialization.Serializable
 
 /**
@@ -36,8 +36,7 @@ fun NavGraphBuilder.calendarScreen(
 ) {
     composable<CalendarRoute> { backStackEntry ->
         val route = backStackEntry.toRoute<CalendarRoute>()
-        CalendarScreen(
-            userId = route.userId,
+        CalendarRoot(
             readOnly = route.readOnly,
             onDayClick = { date -> onDayClick(route.userId, date, route.readOnly) },
             onCaptureClick = onCaptureClick,

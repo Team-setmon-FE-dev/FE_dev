@@ -2,6 +2,8 @@ package com.setmon.core.data.di
 
 import com.setmon.core.data.auth.AuthRepository
 import com.setmon.core.data.auth.DefaultAuthRepository
+import com.setmon.core.data.calendar.CalendarRepository
+import com.setmon.core.data.calendar.DefaultCalendarRepository
 import com.setmon.core.data.user.DefaultUserRepository
 import com.setmon.core.data.user.UserRepository
 import dagger.Binds
@@ -25,4 +27,8 @@ internal abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindUserRepository(impl: DefaultUserRepository): UserRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindCalendarRepository(impl: DefaultCalendarRepository): CalendarRepository
 }
