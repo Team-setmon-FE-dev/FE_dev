@@ -28,6 +28,8 @@ core:data ──▶ core:network, core:model
 core:network ──▶ core:model
 ```
 
+- 예외: `feature:capture`는 영상 업로드 때문에 `core:network`의 `@AuthedOkHttp`, `@ApiBaseUrl`만 직접 쓴다. S3 주소에는 토큰이 붙지 않는다.
+
 - **feature끼리는 서로 의존하지 않는다.** `feature:capture`에서 `feature:calendar`를 import하면 안 된다.
   다른 화면으로 가야 하면 콜백(`onUploadComplete`, `onBack` 등)을 호출하고, 실제 이동은 `app`의 `SetmonNavHost`가 한다.
 - 새 라이브러리는 **`gradle/libs.versions.toml`에 먼저 추가**하고, 모듈의 `build.gradle.kts`에서 `libs.xxx`로 쓴다. 버전을 모듈 파일에 직접 적지 않는다.

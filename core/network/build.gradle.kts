@@ -28,8 +28,11 @@ dependencies {
 
     implementation(libs.retrofit)
     implementation(libs.retrofit.kotlinx.serialization)
-    implementation(libs.okhttp)
+    api(libs.okhttp) // @AuthedOkHttp 로 밖에 내주는 타입
     implementation(libs.okhttp.logging)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.kotlinx.coroutines.core)
+
+    testImplementation(libs.junit)
 }

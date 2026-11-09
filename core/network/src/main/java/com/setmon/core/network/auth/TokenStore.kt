@@ -17,8 +17,8 @@ private val Context.sessionDataStore by preferencesDataStore(name = "session")
 @Singleton
 class TokenStore @Inject constructor(
     @param:ApplicationContext private val context: Context,
-) {
-    suspend fun save(tokens: AuthTokens) {
+) : SessionStorage {
+    override suspend fun save(tokens: AuthTokens) {
         context.sessionDataStore.edit {
             it[USER_ID] = tokens.userId
             it[ACCESS_TOKEN] = tokens.accessToken
@@ -27,13 +27,17 @@ class TokenStore @Inject constructor(
     }
 
     /** 저장된 로그인이 없으면 null */
-    suspend fun read(): AuthTokens? {
+    override suspend fun read(): AuthTokens? {
         val prefs = context.sessionDataStore.data.first()
         return AuthTokens(
             userId = prefs[USER_ID] ?: return null,
             accessToken = prefs[ACCESS_TOKEN] ?: return null,
             refreshToken = prefs[REFRESH_TOKEN] ?: return null,
         )
+    }
+
+    override suspend fun clear() {
+        context.sessionDataStore.edit { it.clear() }
     }
 
     private companion object {

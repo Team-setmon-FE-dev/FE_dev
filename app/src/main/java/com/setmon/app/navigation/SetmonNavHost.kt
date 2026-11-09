@@ -1,6 +1,7 @@
 package com.setmon.app.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
@@ -21,6 +22,8 @@ import com.setmon.feature.friend.navigation.friendScreen
 import com.setmon.feature.friend.navigation.navigateToFriend
 import com.setmon.feature.mypage.navigation.myPageScreen
 import com.setmon.feature.mypage.navigation.navigateToMyPage
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 
 /**
  * 앱의 모든 화면을 이어주는 곳.
@@ -29,6 +32,8 @@ import com.setmon.feature.mypage.navigation.navigateToMyPage
 @Composable
 fun SetmonNavHost(
     navController: NavHostController = rememberNavController(),
+    /** refresh 가 거절돼 다시 로그인해야 할 때 값이 온다 */
+    sessionExpired: Flow<Unit> = emptyFlow(),
 ) {
     // 로그인/로그아웃처럼 이전 화면을 모두 지우고 이동할 때 쓰는 옵션
     fun clearAll() = navOptions {
@@ -40,6 +45,10 @@ fun SetmonNavHost(
         readOnly = false,
         navOptions = clearAll(),
     )
+
+    LaunchedEffect(navController, sessionExpired) {
+        sessionExpired.collect { navController.navigateToLogin(navOptions = clearAll()) }
+    }
 
     NavHost(
         navController = navController,
