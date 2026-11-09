@@ -106,6 +106,9 @@ fun FriendListItem(
     onRemove: (() -> Unit)? = null,
     onAccept: (() -> Unit)? = null,
     onDecline: (() -> Unit)? = null,
+    removeLabel: String = "Remove",
+    acceptLabel: String = "Accept",
+    declineLabel: String = "Decline",
 ) {
     val colors = SetmonTheme.colors
     Row(
@@ -138,7 +141,7 @@ fun FriendListItem(
         if (onAccept != null || onDecline != null) {
             if (onDecline != null) {
                 TextButton(onClick = onDecline) {
-                    Text("Decline", style = SetmonTheme.typography.label, color = colors.textSecondary)
+                    Text(declineLabel, style = SetmonTheme.typography.label, color = colors.textSecondary)
                 }
             }
             if (onAccept != null) {
@@ -149,12 +152,12 @@ fun FriendListItem(
                         .clickable(onClick = onAccept)
                         .padding(horizontal = 14.dp, vertical = 6.dp),
                 ) {
-                    Text("Accept", style = SetmonTheme.typography.label, color = colors.onPrimary)
+                    Text(acceptLabel, style = SetmonTheme.typography.label, color = colors.onPrimary)
                 }
             }
         } else if (onRemove != null) {
             TextButton(onClick = onRemove) {
-                Text("Remove", style = SetmonTheme.typography.label, color = colors.textSecondary)
+                Text(removeLabel, style = SetmonTheme.typography.label, color = colors.textSecondary)
             }
         }
     }
