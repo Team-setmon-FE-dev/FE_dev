@@ -66,18 +66,16 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.setmon.core.designsystem.R
-import com.setmon.feature.capture.data.dto.ClipRegisterResponse
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
+import java.time.Instant
 import java.util.Date
 import java.util.Locale
+import kotlin.time.Duration.Companion.milliseconds
 
-// ==========================================
-// 1. Font & Typography Setup
-// ==========================================
 val PretendardFontFamily = FontFamily(
     Font(R.font.pretendard_regular, FontWeight.W400),
     Font(R.font.pretendard_medium, FontWeight.W500),
@@ -88,7 +86,6 @@ val PlayfairFontFamily = FontFamily(
     Font(R.font.playfair_display_regular, FontWeight.W400)
 )
 
-// Color Palette
 val DarkGreen = Color(0xFF1E3A2F)
 val CreamBackground = Color(0xFFF7F4EC)
 val ToastBadgeBackground = Color(0xFFC7B28B)
@@ -96,42 +93,30 @@ val MutedText = Color(0xFF757575)
 val AccentRed = Color(0xFFD34E36)
 val ProgressTrackColor = Color(0xFFDDD2BA)
 
-// ==========================================
-// 2. UI State & State Machine Enum
-// ==========================================
 enum class CaptureStep {
-    CAPTURE_IDLE,    // Step 1: 촬영 대기
-    RECORDING,       // Step 2: 녹화 중
-    PREVIEW,         // Step 3: 미리보기
-    CHOOSE_COVER     // Step 4: 커버 선택
+    CAPTURE_IDLE,
+    RECORDING,
+    PREVIEW,
+    CHOOSE_COVER
 }
 
-// ==========================================
-// 3. Main Screen Container (CaptureScreen)
-// ==========================================
 @SuppressLint("MissingPermission")
 @Composable
-fun CaptureScreen(
+internal fun CaptureScreen(
     uiState: CaptureUiState = CaptureUiState.Idle,
+    modifier: Modifier = Modifier,
     isSlotOccupied: Boolean = false,
-    onRecordComplete: (videoFile: File, thumbFile: File, durationMs: Long) -> Unit = { _, _, _ -> },
-    onRetryUpload: (videoFile: File, thumbFile: File, durationMs: Long) -> Unit = { _, _, _ -> },
-    onUploadSuccess: (ClipRegisterResponse) -> Unit = {},
-    onBack: () -> Unit = {},
-    modifier: Modifier = Modifier
+    onUpload: (PendingClip) -> Unit = {},
+    onDismissError: () -> Unit = {},
+    onUploadComplete: () -> Unit = {},
+    onBack: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
     LaunchedEffect(uiState) {
-        when (uiState) {
-            is CaptureUiState.Success -> {
-                onUploadSuccess(uiState.response)
-            }
-            is CaptureUiState.Error -> {
-                Toast.makeText(context, uiState.message, Toast.LENGTH_SHORT).show()
-            }
-            else -> {}
+        if (uiState is CaptureUiState.Success) {
+            onUploadComplete()
         }
     }
 
@@ -179,7 +164,7 @@ fun CaptureScreen(
                 modifier = Modifier.padding(24.dp)
             ) {
                 Text(
-                    text = "카메라 및 마이크 권한을 허용해주세요.",
+                    text = "카메라 및 오디오 권한이 필요합니다.",
                     color = Color.White,
                     fontSize = 15.sp,
                     modifier = Modifier.padding(bottom = 16.dp)
@@ -195,7 +180,7 @@ fun CaptureScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))
                 ) {
-                    Text("권한 요청", color = Color.White)
+                    Text("권한 허용하기", color = Color.White)
                 }
             }
         }
@@ -207,6 +192,7 @@ fun CaptureScreen(
     var selectedFrameIndex by remember { mutableIntStateOf(2) }
     var capturedVideoFile by remember { mutableStateOf<File?>(null) }
     var extractedCoverFrames by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
+
     var lensFacing by remember { mutableStateOf(CameraSelector.DEFAULT_BACK_CAMERA) }
 
     val previewView = remember {
@@ -226,8 +212,11 @@ fun CaptureScreen(
             .build()
     }
     val videoCapture = remember { VideoCapture.withOutput(recorder) }
+
     var activeRecording by remember { mutableStateOf<Recording?>(null) }
     var recordingStartTimeMs by remember { mutableLongStateOf(0L) }
+    // 서버가 시간 슬롯을 정하는 기준. 업로드 시각이 아니라 녹화를 시작한 시각이어야 한다
+    var recordedAt by remember { mutableStateOf<Instant?>(null) }
 
     LaunchedEffect(lensFacing) {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
@@ -285,11 +274,14 @@ fun CaptureScreen(
                                 val cacheDir = context.cacheDir
                                 val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.KOREA).format(Date())
                                 val videoFile = File(cacheDir, "CLIP_${timeStamp}.mp4")
+
                                 val outputOptions = FileOutputOptions.Builder(videoFile).build()
                                 recordingStartTimeMs = SystemClock.elapsedRealtime()
+                                recordedAt = Instant.now()
                                 currentStep = CaptureStep.RECORDING
 
                                 val pendingRecording = videoCapture.output.prepareRecording(context, outputOptions)
+
                                 val hasAudioPermission = ContextCompat.checkSelfPermission(
                                     context,
                                     Manifest.permission.RECORD_AUDIO
@@ -305,7 +297,7 @@ fun CaptureScreen(
                                             val elapsedMs = SystemClock.elapsedRealtime() - recordingStartTimeMs
                                             if (elapsedMs < 1000L) {
                                                 videoFile.delete()
-                                                Toast.makeText(context, "1초 이상 촬영해주세요.", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, "1초 이상 찍어주세요.", Toast.LENGTH_SHORT).show()
                                                 recordDurationSeconds = 0f
                                                 currentStep = CaptureStep.CAPTURE_IDLE
                                             } else {
@@ -322,7 +314,7 @@ fun CaptureScreen(
                                 }
                             } catch (e: Exception) {
                                 Log.e("CaptureScreen", "Recording start failed", e)
-                                Toast.makeText(context, "촬영 실패: ${e.message}", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "녹화 실패: ${e.message}", Toast.LENGTH_SHORT).show()
                                 currentStep = CaptureStep.CAPTURE_IDLE
                             }
                         },
@@ -357,7 +349,15 @@ fun CaptureScreen(
                         },
                         onUpload = {
                             capturedVideoFile?.let { file ->
-                                val totalMs = (recordDurationSeconds * 1000f).toLong().coerceIn(1000L, 2000L)
+                                // 화면 타이머가 아니라 실제 파일 길이를 보낸다.
+                                // 2초에 자동 종료해도 파일은 수십 ms 길 수 있어 서버 규격(1000~2000ms)에 맞춘다
+                                val fileMs = readVideoDurationMs(file)
+                                    ?: (recordDurationSeconds * 1000f).toLong()
+                                if (fileMs < MIN_CLIP_MS) {
+                                    Toast.makeText(context, "1초 이상 찍어주세요.", Toast.LENGTH_SHORT).show()
+                                    return@let
+                                }
+                                val totalMs = fileMs.coerceAtMost(MAX_CLIP_MS).toInt()
                                 val selectedBitmap = extractedCoverFrames.getOrNull(selectedFrameIndex)
                                     ?: extractedCoverFrames.firstOrNull()
                                 val thumbFile = if (selectedBitmap != null) {
@@ -365,7 +365,14 @@ fun CaptureScreen(
                                 } else {
                                     File(context.cacheDir, "THUMB_temp.jpg").apply { createNewFile() }
                                 }
-                                onRecordComplete(file, thumbFile, totalMs)
+                                onUpload(
+                                    PendingClip(
+                                        videoFile = file,
+                                        thumbFile = thumbFile,
+                                        durationMs = totalMs,
+                                        recordedAt = recordedAt ?: Instant.now(),
+                                    )
+                                )
                             }
                         },
                         onBack = {
@@ -389,7 +396,6 @@ fun CaptureScreen(
             }
         }
 
-        // 업로드 중 인디케이터
         if (uiState is CaptureUiState.Uploading) {
             Box(
                 modifier = Modifier
@@ -401,7 +407,7 @@ fun CaptureScreen(
                     CircularProgressIndicator(color = Color.White)
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = if (uiState.retryAttempt > 0) "업로드 중... (${uiState.retryAttempt}/3)" else "업로드 중...",
+                        text = if (uiState.attempt > 1) "업로드 재시도 중... (${uiState.attempt}/3)" else "업로드 중...",
                         color = Color.White,
                         fontSize = 14.sp
                     )
@@ -409,7 +415,6 @@ fun CaptureScreen(
             }
         }
 
-        // 업로드 실패 시 재시도 다이얼로그
         if (uiState is CaptureUiState.UploadFailed) {
             Box(
                 modifier = Modifier
@@ -435,7 +440,7 @@ fun CaptureScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = uiState.errorMessage.ifBlank { "네트워크 연결을 확인해주세요." },
+                            text = uiState.errorMessage.ifBlank { "오류가 발생했습니다." },
                             fontFamily = PretendardFontFamily,
                             fontSize = 13.sp,
                             color = MutedText,
@@ -444,13 +449,28 @@ fun CaptureScreen(
                         Spacer(modifier = Modifier.height(20.dp))
                         Button(
                             onClick = {
-                                onRetryUpload(uiState.videoFile, uiState.thumbFile, uiState.durationMs)
+                                if (uiState.canRetry) {
+                                    onUpload(uiState.clip)
+                                } else {
+                                    // PAST_SLOT 등: 같은 클립은 다시 올려도 실패하므로 새로 찍는다
+                                    uiState.clip.videoFile.delete()
+                                    uiState.clip.thumbFile.delete()
+                                    capturedVideoFile = null
+                                    extractedCoverFrames = emptyList()
+                                    recordDurationSeconds = 0f
+                                    currentStep = CaptureStep.CAPTURE_IDLE
+                                    onDismissError()
+                                }
                             },
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = DarkGreen),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("재시도", color = Color.White, fontSize = 15.sp)
+                            Text(
+                                text = if (uiState.canRetry) "다시 시도" else "다시 찍기",
+                                color = Color.White,
+                                fontSize = 15.sp
+                            )
                         }
                     }
                 }
@@ -459,9 +479,6 @@ fun CaptureScreen(
     }
 }
 
-// ==========================================
-// 4. Capture & Record Screen Component
-// ==========================================
 @Composable
 private fun CaptureAndRecordScreen(
     currentStep: CaptureStep,
@@ -483,6 +500,7 @@ private fun CaptureAndRecordScreen(
             factory = { previewView },
             modifier = Modifier.fillMaxSize()
         )
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -520,6 +538,7 @@ private fun CaptureAndRecordScreen(
                     )
                 }
             }
+
             Spacer(modifier = Modifier.height(16.dp))
 
             if (currentStep == CaptureStep.CAPTURE_IDLE && isSlotOccupied) {
@@ -530,7 +549,7 @@ private fun CaptureAndRecordScreen(
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Text(
-                        text = "Already posted at $currentHourText • uploading will replace it",
+                        text = "Already posted at $currentHourText   uploading will replace it",
                         fontFamily = PretendardFontFamily,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.W400,
@@ -563,6 +582,7 @@ private fun CaptureAndRecordScreen(
                 }
             }
         }
+
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -577,12 +597,14 @@ private fun CaptureAndRecordScreen(
                 color = Color.White,
                 modifier = Modifier.padding(bottom = 20.dp)
             )
+
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Spacer(modifier = Modifier.size(48.dp))
+
                 RecordButton(
                     isRecording = currentStep == CaptureStep.RECORDING,
                     progress = (recordDurationSeconds / 2.0f).coerceIn(0f, 1f),
@@ -593,7 +615,7 @@ private fun CaptureAndRecordScreen(
                             var elapsed = 0f
                             val interval = 0.05f
                             while (elapsed < 2.0f) {
-                                delay((interval * 1000).toLong())
+                                delay(50.milliseconds)
                                 elapsed += interval
                                 onRecordingProgress(elapsed)
                             }
@@ -605,7 +627,9 @@ private fun CaptureAndRecordScreen(
                         onFinishRecord()
                     }
                 )
+
                 Spacer(modifier = Modifier.width(28.dp))
+
                 IconButton(
                     onClick = onSwitchCamera,
                     modifier = Modifier
@@ -624,9 +648,6 @@ private fun CaptureAndRecordScreen(
     }
 }
 
-// ==========================================
-// 5. Canvas Record Button Component
-// ==========================================
 @Composable
 private fun RecordButton(
     isRecording: Boolean,
@@ -658,6 +679,7 @@ private fun RecordButton(
             val strokeWidth = 5.dp.toPx()
             val radiusOffset = strokeWidth / 2
             val arcSize = Size(size.width - strokeWidth, size.height - strokeWidth)
+
             drawArc(
                 color = if (isRecording) ProgressTrackColor.copy(alpha = 0.5f) else Color.White,
                 startAngle = 0f,
@@ -667,6 +689,7 @@ private fun RecordButton(
                 size = arcSize,
                 style = Stroke(width = strokeWidth)
             )
+
             if (isRecording) {
                 drawArc(
                     color = Color.Black.copy(alpha = 0.85f),
@@ -679,6 +702,7 @@ private fun RecordButton(
                 )
             }
         }
+
         Box(
             modifier = Modifier
                 .size(if (isRecording) 36.dp else 68.dp)
@@ -688,9 +712,6 @@ private fun RecordButton(
     }
 }
 
-// ==========================================
-// 6. Preview Screen Component
-// ==========================================
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 private fun PreviewScreen(
@@ -766,6 +787,7 @@ private fun PreviewScreen(
                     tint = Color.White
                 )
             }
+
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(14.dp))
@@ -773,7 +795,7 @@ private fun PreviewScreen(
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
                 Text(
-                    text = String.format(Locale.KOREA, "Looping • %.1f s", recordDuration),
+                    text = String.format(Locale.KOREA, "Looping   %.1f s", recordDuration),
                     fontFamily = PretendardFontFamily,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.W400,
@@ -801,7 +823,7 @@ private fun PreviewScreen(
                 ) {
                     Column {
                         Text(
-                            text = "Today • $currentHourText",
+                            text = "Today   $currentHourText",
                             fontFamily = PretendardFontFamily,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.W600,
@@ -816,6 +838,7 @@ private fun PreviewScreen(
                             color = MutedText
                         )
                     }
+
                     Text(
                         text = "Choose cover",
                         fontFamily = PretendardFontFamily,
@@ -825,7 +848,9 @@ private fun PreviewScreen(
                         modifier = Modifier.clickable { onChooseCover() }
                     )
                 }
+
                 Spacer(modifier = Modifier.height(24.dp))
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -845,6 +870,7 @@ private fun PreviewScreen(
                             fontWeight = FontWeight.W500
                         )
                     }
+
                     Button(
                         onClick = onUpload,
                         shape = RoundedCornerShape(12.dp),
@@ -867,9 +893,6 @@ private fun PreviewScreen(
     }
 }
 
-// ==========================================
-// 7. Choose Cover Screen Component
-// ==========================================
 @Composable
 private fun ChooseCoverScreen(
     selectedIndex: Int,
@@ -900,6 +923,7 @@ private fun ChooseCoverScreen(
                     tint = Color(0xFF1C1C1C)
                 )
             }
+
             Text(
                 text = "Choose cover",
                 fontFamily = PretendardFontFamily,
@@ -909,7 +933,9 @@ private fun ChooseCoverScreen(
                 modifier = Modifier.align(Alignment.Center)
             )
         }
+
         Spacer(modifier = Modifier.height(16.dp))
+
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -934,6 +960,7 @@ private fun ChooseCoverScreen(
                     contentScale = ContentScale.Crop
                 )
             }
+
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -951,7 +978,9 @@ private fun ChooseCoverScreen(
                 )
             }
         }
+
         Spacer(modifier = Modifier.height(24.dp))
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -959,9 +988,10 @@ private fun ChooseCoverScreen(
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
         ) {
-            repeat(7) { index ->
+            repeat(frames.size.coerceAtLeast(1)) { index ->
                 val isSelected = index == selectedIndex
                 val frameBitmap = frames.getOrNull(index)
+
                 Box(
                     modifier = Modifier
                         .size(width = 46.dp, height = 72.dp)
@@ -992,7 +1022,9 @@ private fun ChooseCoverScreen(
                 }
             }
         }
+
         Spacer(modifier = Modifier.height(16.dp))
+
         Text(
             text = "Slide along the clip to pick the frame\nthat appears in your calendar cell",
             fontFamily = PretendardFontFamily,
@@ -1003,7 +1035,9 @@ private fun ChooseCoverScreen(
             lineHeight = 18.sp,
             modifier = Modifier.padding(horizontal = 32.dp)
         )
+
         Spacer(modifier = Modifier.height(28.dp))
+
         Button(
             onClick = onUseCover,
             shape = RoundedCornerShape(12.dp),
@@ -1024,9 +1058,25 @@ private fun ChooseCoverScreen(
     }
 }
 
-// ==========================================
-// 8. Helper Functions
-// ==========================================
+/** 서버 클립 규격 (API 명세: 1000~2000ms) */
+private const val MIN_CLIP_MS = 1000L
+private const val MAX_CLIP_MS = 2000L
+
+private fun readVideoDurationMs(videoFile: File): Long? {
+    val retriever = MediaMetadataRetriever()
+    return try {
+        retriever.setDataSource(videoFile.absolutePath)
+        retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+    } catch (e: Exception) {
+        Log.e("CaptureScreen", "Duration read failed", e)
+        null
+    } finally {
+        try {
+            retriever.release()
+        } catch (_: Exception) {}
+    }
+}
+
 private fun saveBitmapToFile(context: Context, bitmap: Bitmap): File {
     val file = File(context.cacheDir, "THUMB_${System.currentTimeMillis()}.jpg")
     file.outputStream().use { out ->
@@ -1056,7 +1106,7 @@ private fun extractFramesFromVideo(videoFile: File, count: Int = 7): List<Bitmap
     } finally {
         try {
             retriever.release()
-        } catch (ignored: Exception) {}
+        } catch (_: Exception) {}
     }
     return frames
 }

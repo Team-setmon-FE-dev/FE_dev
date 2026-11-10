@@ -9,32 +9,38 @@ import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
 import com.setmon.feature.capture.CaptureScreen
 import com.setmon.feature.capture.CaptureViewModel
-import com.setmon.feature.capture.data.dto.ClipRegisterResponse
+import kotlinx.serialization.Serializable
 
-const val CAPTURE_ROUTE = "capture_route"
+/** S-04 촬영 — route: capture */
+@Serializable
+data object CaptureRoute
 
-fun NavController.navigateToCapture(navOptions: NavOptions? = null) {
-    this.navigate(CAPTURE_ROUTE, navOptions)
-}
+fun NavController.navigateToCapture(navOptions: NavOptions? = null) =
+    navigate(CaptureRoute, navOptions)
 
+/**
+ * A ↔ B 계약 (docs/MODULES.md 5번). 이름과 파라미터를 바꾸려면 A와 먼저 합의한다.
+ *
+ * @param onUploadComplete 업로드 성공 시 호출 → A가 달력으로 돌아가 새로고침
+ * @param onBack 촬영을 그만두고 나갈 때 호출
+ */
 fun NavGraphBuilder.captureScreen(
-    onUploadSuccess: (ClipRegisterResponse) -> Unit,
-    onBack: () -> Unit
+    onUploadComplete: () -> Unit,
+    onBack: () -> Unit,
 ) {
-    composable(route = CAPTURE_ROUTE) {
+    composable<CaptureRoute> {
         val viewModel: CaptureViewModel = hiltViewModel()
         val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+        val isSlotOccupied by viewModel.isSlotOccupied.collectAsStateWithLifecycle()
+
         CaptureScreen(
             uiState = uiState,
-            onRecordComplete = { videoFile, thumbFile, durationMs ->
-                viewModel.uploadClip(videoFile, thumbFile, durationMs)
-            },
-            onRetryUpload = { videoFile, thumbFile, durationMs ->
-                viewModel.uploadClipWithRetry(videoFile, thumbFile, durationMs)
-            },
-            onUploadSuccess = onUploadSuccess,
-            onBack = onBack
+            isSlotOccupied = isSlotOccupied,
+            onUpload = viewModel::uploadClip,
+            onDismissError = viewModel::resetState,
+            onUploadComplete = onUploadComplete,
+            onBack = onBack,
         )
     }
 }
