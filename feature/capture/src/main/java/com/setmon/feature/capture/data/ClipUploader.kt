@@ -1,124 +1,76 @@
-package com.setmon.feature.capture.data
+package com.setmon.core.network
 
-import com.google.gson.Gson
-import com.setmon.feature.capture.data.dto.*
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
-import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
-import java.time.Instant
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 class ClipUploader @Inject constructor(
     private val okHttpClient: OkHttpClient,
-    private val baseUrl: String = "http://3.34.46.35:8080",
-    private val gson: Gson = Gson()
+    private val baseUrl: String,
 ) {
+
     /**
-     * 1. Presigned URL 발급
-     * 2. S3에 영상 및 썸네일 PUT 업로드 (Header Content-Type 일치 필수)
-     * 3. /api/clips 에 등록 API 호출
+     * S3 업로드 URL 발급 등 자사 서버 API 호출 시 주입받은 baseUrl 사용
      */
-    suspend fun uploadClipProcess(
-        videoFile: File,
-        thumbFile: File,
-        durationMs: Long,
-        recordedAtEpochMs: Long = System.currentTimeMillis()
-    ): Result<ClipRegisterResponse> = withContext(Dispatchers.IO) {
-        try {
-            // 1. Presigned URL 발급
-            val presignedData = requestPresignedUrl().getOrThrow()
-
-            // 2. S3 PUT 업로드 (자동 3회 재시도 포함)
-            uploadToS3WithRetry(videoFile, presignedData.video.uploadUrl, presignedData.video.contentType).getOrThrow()
-            uploadToS3WithRetry(thumbFile, presignedData.thumbnail.uploadUrl, presignedData.thumbnail.contentType).getOrThrow()
-
-            // 3. UTC ISO-8601 포맷팅 생성 (예: 2026-11-09T08:56:00Z)
-            val isoRecordedAt = DateTimeFormatter.ISO_INSTANT.format(
-                Instant.ofEpochMilli(recordedAtEpochMs).atZone(ZoneOffset.UTC)
-            )
-
-            val registerReq = ClipRegisterRequest(
-                videoKey = presignedData.video.key,
-                thumbKey = presignedData.thumbnail.key,
-                durationMs = durationMs.coerceIn(1000L, 2000L),
-                recordedAt = isoRecordedAt
-            )
-
-            val response = registerClip(registerReq).getOrThrow()
-            Result.success(response)
-        } catch (e: Exception) {
-            Result.failure(e)
+    suspend fun getUploadUrl(clipId: String): String = withContext(Dispatchers.IO) {
+        val requestUrl = if (baseUrl.endsWith("/")) {
+            "${baseUrl}clips/$clipId/upload-url"
+        } else {
+            "$baseUrl/clips/$clipId/upload-url"
         }
-    }
 
-    private fun requestPresignedUrl(): Result<PresignedUrlResponse> {
         val request = Request.Builder()
-            .url("$baseUrl/api/uploads/presigned-url")
-            .post("".toRequestBody(null))
+            .url(requestUrl)
+            .get()
             .build()
 
-        return runCatching {
-            okHttpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    throw RuntimeException("Presigned URL 발급 실패 (${response.code})")
-                }
-                val bodyStr = response.body?.string() ?: throw RuntimeException("Empty response")
-                gson.fromJson(bodyStr, PresignedUrlResponse::class.java)
+        okHttpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw Exception("Failed to get upload URL. Code: ${response.code}")
             }
+            response.body?.string() ?: ""
         }
     }
 
-    private suspend fun uploadToS3WithRetry(
-        file: File,
+    /**
+     * S3 Presigned URL로 파일 업로드 (재시도 로직 포함)
+     * S3 HTTP 403 등 실패 응답 수신 시에도 attempt를 증가시켜 무한 루프를 방지합니다.
+     */
+    suspend fun uploadToS3WithRetry(
         uploadUrl: String,
-        contentType: String,
-        maxRetries: Int = 3
-    ): Result<Boolean> {
+        file: File,
+        contentType: String = "video/mp4",
+        maxRetries: Int = 3,
+    ): Boolean = withContext(Dispatchers.IO) {
         var attempt = 0
-        while (attempt < maxRetries) {
+        var isSuccess = false
+
+        while (attempt < maxRetries && !isSuccess) {
             try {
                 val requestBody = file.asRequestBody(contentType.toMediaTypeOrNull())
                 val request = Request.Builder()
                     .url(uploadUrl)
                     .put(requestBody)
-                    .header("Content-Type", contentType)
                     .build()
 
-                val success = okHttpClient.newCall(request).execute().use { response ->
-                    response.isSuccessful
+                okHttpClient.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        isSuccess = true
+                    } else {
+                        // 403 등 실패 응답 시 attempt 증가
+                        attempt++
+                    }
                 }
-                if (success) return Result.success(true)
             } catch (e: Exception) {
+                // 예외 발생 시 attempt 증가
                 attempt++
-                if (attempt >= maxRetries) return Result.failure(e)
-                delay(1000L * attempt)
             }
         }
-        return Result.failure(RuntimeException("S3 업로드 실패"))
-    }
-
-    private fun registerClip(req: ClipRegisterRequest): Result<ClipRegisterResponse> {
-        val request = Request.Builder()
-            .url("$baseUrl/api/clips")
-            .post(gson.toJson(req).toRequestBody("application/json".toMediaTypeOrNull()))
-            .build()
-
-        return runCatching {
-            okHttpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    throw RuntimeException("클립 등록 실패 (${response.code})")
-                }
-                val bodyStr = response.body?.string() ?: throw RuntimeException("Empty response")
-                gson.fromJson(bodyStr, ClipRegisterResponse::class.java)
-            }
-        }
+        isSuccess
     }
 }
