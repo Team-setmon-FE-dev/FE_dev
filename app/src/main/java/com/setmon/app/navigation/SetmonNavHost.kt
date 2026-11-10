@@ -83,12 +83,8 @@ fun SetmonNavHost(
 
         // S-04 (B 담당)
         captureScreen(
-            onUploadSuccess = { response ->
-                navController.popBackStack()
-            },
-            onBack = {
-                navController.popBackStack()
-            }
+            onUploadComplete = { navController.popBackStack() },
+            onBack = { navController.popBackStack() },
         )
 
         // S-05
