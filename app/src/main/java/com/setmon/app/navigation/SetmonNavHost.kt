@@ -120,8 +120,13 @@ fun SetmonNavHost(
 
         // S-03
         calendarScreen(
-            onDayClick = { userId, date, readOnly ->
-                navController.navigateToDay(userId = userId, date = date, readOnly = readOnly)
+            onDayClick = { userId, date, readOnly, friendNickname ->
+                navController.navigateToDay(
+                    userId = userId,
+                    date = date,
+                    readOnly = readOnly,
+                    friendNickname = friendNickname,
+                )
             },
             onCaptureClick = { navController.navigateToCapture() },
             onFriendCalendarClick = { friendUserId, nickname, replaceCurrent ->

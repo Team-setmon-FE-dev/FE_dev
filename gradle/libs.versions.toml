@@ -73,6 +73,8 @@ androidx-datastore-preferences = { group = "androidx.datastore", name = "datasto
 
 # 이미지 (썸네일)
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
+# Coil 3 은 이게 있어야 http(s) 주소의 사진을 받는다 (없으면 S3 썸네일이 회색 칸으로 남음)
+coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
 
 # build-logic 전용 (공통 설정 플러그인이 AGP 타입을 쓰기 위해 필요)
 android-gradlePlugin = { group = "com.android.tools.build", name = "gradle", version.ref = "agp" }

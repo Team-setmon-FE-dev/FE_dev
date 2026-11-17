@@ -4,6 +4,8 @@ import com.setmon.core.data.auth.AuthRepository
 import com.setmon.core.data.auth.DefaultAuthRepository
 import com.setmon.core.data.calendar.CalendarRepository
 import com.setmon.core.data.calendar.DefaultCalendarRepository
+import com.setmon.core.data.day.DayRepository
+import com.setmon.core.data.day.DefaultDayRepository
 import com.setmon.core.data.friend.DefaultFriendRepository
 import com.setmon.core.data.friend.FriendRepository
 import com.setmon.core.data.user.DefaultUserRepository
@@ -40,6 +42,10 @@ internal abstract class DataModule {
     @Binds
     @Singleton
     abstract fun bindFriendRepository(impl: DefaultFriendRepository): FriendRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindDayRepository(impl: DefaultDayRepository): DayRepository
 
     @Binds
     @Singleton
