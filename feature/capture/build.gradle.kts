@@ -23,4 +23,8 @@ dependencies {
     // 촬영 후 미리보기 반복 재생
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui)
+
+    // 기기 테스트 (갤러리 저장 등 실제 기기에서만 확인되는 것)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
 }
