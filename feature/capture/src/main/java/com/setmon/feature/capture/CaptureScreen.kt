@@ -114,6 +114,11 @@ internal fun CaptureScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    // 촬영 진입 속도(목표: 진입 → 미리보기 2초 이내). Logcat 에서 SetmonCapture 로 확인
+    val screenEnteredAt = remember { SystemClock.elapsedRealtime() }
+    // 화면에 들어오자마자 카메라 초기화를 시작한다. 권한 확인·화면 구성과 동시에 진행되어 미리보기가 빨리 뜬다
+    val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context.applicationContext) }
+
     LaunchedEffect(uiState) {
         if (uiState is CaptureUiState.Success) {
             onUploadComplete()
@@ -218,8 +223,21 @@ internal fun CaptureScreen(
     // 서버가 시간 슬롯을 정하는 기준. 업로드 시각이 아니라 녹화를 시작한 시각이어야 한다
     var recordedAt by remember { mutableStateOf<Instant?>(null) }
 
+    // 첫 미리보기 프레임이 나온 순간 진입 후 걸린 시간을 한 번 남긴다
+    DisposableEffect(previewView, lifecycleOwner) {
+        var logged = false
+        val observer = androidx.lifecycle.Observer<PreviewView.StreamState> { state ->
+            if (!logged && state == PreviewView.StreamState.STREAMING) {
+                logged = true
+                val elapsed = SystemClock.elapsedRealtime() - screenEnteredAt
+                Log.i(CAPTURE_LOG_TAG, "진입→미리보기 ${elapsed}ms" + if (elapsed > 2000) " (목표 2초 초과)" else "")
+            }
+        }
+        previewView.previewStreamState.observe(lifecycleOwner, observer)
+        onDispose { previewView.previewStreamState.removeObserver(observer) }
+    }
+
     LaunchedEffect(lensFacing) {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
             val cameraProvider = cameraProviderFuture.get()
             val preview = Preview.Builder().build().also {
@@ -1057,6 +1075,8 @@ private fun ChooseCoverScreen(
         }
     }
 }
+
+private const val CAPTURE_LOG_TAG = "SetmonCapture"
 
 /** 서버 클립 규격 (API 명세: 1000~2000ms) */
 private const val MIN_CLIP_MS = 1000L
