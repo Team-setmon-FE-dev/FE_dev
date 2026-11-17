@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 기기 테스트 APK 전용. 실제 앱은 app 모듈에 INTERNET 권한이 있다 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+</manifest>
