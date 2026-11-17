@@ -3,6 +3,7 @@ package com.setmon.feature.calendar
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,6 +49,7 @@ import com.setmon.core.designsystem.component.SetmonButtonType
 import com.setmon.core.designsystem.component.SetmonTopBar
 import com.setmon.core.designsystem.component.TodayCard
 import com.setmon.core.designsystem.theme.SetmonTheme
+import com.setmon.core.model.Friend
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle as DateTextStyle
@@ -60,8 +62,10 @@ private const val BACKGROUND_OVERLAY_ALPHA = 0.53f // 피그마의 Overlay 28% +
 @Composable
 internal fun CalendarRoot(
     readOnly: Boolean,
+    friendNickname: String?,
     onDayClick: (date: String) -> Unit,
     onCaptureClick: () -> Unit,
+    onFriendCalendarClick: (friendUserId: Long, nickname: String) -> Unit,
     onFriendClick: () -> Unit,
     onMyPageClick: () -> Unit,
     onBack: () -> Unit,
@@ -74,11 +78,13 @@ internal fun CalendarRoot(
     CalendarScreen(
         uiState = uiState,
         readOnly = readOnly,
+        friendNickname = friendNickname,
         onPreviousMonth = viewModel::showPreviousMonth,
         onNextMonth = viewModel::showNextMonth,
         onRetry = viewModel::retry,
         onDayClick = onDayClick,
         onCaptureClick = onCaptureClick,
+        onFriendCalendarClick = onFriendCalendarClick,
         onFriendClick = onFriendClick,
         onMyPageClick = onMyPageClick,
         onBack = onBack,
@@ -89,11 +95,13 @@ internal fun CalendarRoot(
 private fun CalendarScreen(
     uiState: CalendarUiState,
     readOnly: Boolean,
+    friendNickname: String?,
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit,
     onRetry: () -> Unit,
     onDayClick: (date: String) -> Unit,
     onCaptureClick: () -> Unit,
+    onFriendCalendarClick: (friendUserId: Long, nickname: String) -> Unit,
     onFriendClick: () -> Unit,
     onMyPageClick: () -> Unit,
     onBack: () -> Unit,
@@ -120,14 +128,19 @@ private fun CalendarScreen(
         ) {
             if (readOnly) {
                 SetmonTopBar(
-                    title = stringResource(R.string.calendar_friend_title),
+                    title = friendNickname
+                        ?.let { stringResource(R.string.calendar_friend_title_named, it) }
+                        ?: stringResource(R.string.calendar_friend_title),
                     onBack = onBack,
                     readOnly = true,
                 )
             } else {
-                // 책갈피 탭. 친구별 탭은 친구 API 연결(3주차) 때 + 앞에 추가한다
+                // 책갈피 탭: 마이페이지 · 친구들(닉네임순) · +. 친구가 많으면 옆으로 밀어서 본다
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 24.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     BookmarkTab(
@@ -135,6 +148,13 @@ private fun CalendarScreen(
                         selected = true,
                         onClick = onMyPageClick,
                     )
+                    uiState.friends.forEach { friend ->
+                        BookmarkTab(
+                            label = friend.nickname,
+                            selected = false,
+                            onClick = { onFriendCalendarClick(friend.userId, friend.nickname) },
+                        )
+                    }
                     BookmarkTab(label = "+", selected = false, onClick = onFriendClick)
                 }
             }
@@ -343,13 +363,16 @@ private fun CalendarScreenPreview() {
                 month = month,
                 today = today,
                 weeks = buildCalendarWeeks(month, today, emptyList()),
+                friends = listOf(Friend(2L, "Minjun"), Friend(3L, "Taeyang")),
             ),
             readOnly = false,
+            friendNickname = null,
             onPreviousMonth = {},
             onNextMonth = {},
             onRetry = {},
             onDayClick = {},
             onCaptureClick = {},
+            onFriendCalendarClick = { _, _ -> },
             onFriendClick = {},
             onMyPageClick = {},
             onBack = {},

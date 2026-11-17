@@ -2,6 +2,7 @@
 <resources>
     <string name="calendar_my_page">마이페이지</string>
     <string name="calendar_friend_title">친구 달력</string>
+    <string name="calendar_friend_title_named">%1$s님의 달력</string>
     <string name="calendar_previous_month">이전 달</string>
     <string name="calendar_next_month">다음 달</string>
     <string name="calendar_today_title">오늘, %1$d월 %2$d일</string>

@@ -8,7 +8,10 @@ import androidx.navigation.toRoute
 import com.setmon.core.data.calendar.CalendarError
 import com.setmon.core.data.calendar.CalendarMonthResult
 import com.setmon.core.data.calendar.CalendarRepository
+import com.setmon.core.data.friend.FriendRepository
+import com.setmon.core.data.friend.FriendResult
 import com.setmon.core.model.CalendarDaySummary
+import com.setmon.core.model.Friend
 import com.setmon.core.model.todayInKorea
 import com.setmon.feature.calendar.navigation.CalendarRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,6 +30,8 @@ internal data class CalendarUiState(
     val today: LocalDate,
     val weeks: List<List<CalendarCell>>,
     val todayClipCount: Int = 0,
+    /** 내 달력 책갈피에 보이는 친구 탭 (친구 달력에서는 비어 있다) */
+    val friends: List<Friend> = emptyList(),
     val isLoading: Boolean = false,
     @param:StringRes val error: Int? = null,
 )
@@ -35,9 +40,11 @@ internal data class CalendarUiState(
 internal class CalendarViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val calendarRepository: CalendarRepository,
+    private val friendRepository: FriendRepository,
 ) : ViewModel() {
 
-    private val userId: Long = savedStateHandle.toRoute<CalendarRoute>().userId
+    private val route: CalendarRoute = savedStateHandle.toRoute<CalendarRoute>()
+    private val userId: Long = route.userId
     private val loadedMonths = mutableMapOf<YearMonth, List<CalendarDaySummary>>()
     private var loadJob: Job? = null
 
@@ -58,6 +65,8 @@ internal class CalendarViewModel @Inject constructor(
 
         val currentMonth = YearMonth.from(today)
         if (currentMonth != visibleMonth) refreshCurrentMonth(currentMonth)
+
+        if (!route.readOnly) refreshFriends()
     }
 
     fun showPreviousMonth() = showMonth(_uiState.value.month.minusMonths(1))
@@ -97,6 +106,14 @@ internal class CalendarViewModel @Inject constructor(
                 loadedMonths[month] = result.days
                 render()
             }
+        }
+    }
+
+    /** 친구 화면에서 추가·삭제하고 돌아오면 탭이 바뀌어야 하므로 화면에 올 때마다 부른다. 실패하면 기존 탭 유지 */
+    private fun refreshFriends() {
+        viewModelScope.launch {
+            val result = friendRepository.getFriends()
+            if (result is FriendResult.Success) _uiState.update { it.copy(friends = result.data) }
         }
     }
 

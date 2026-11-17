@@ -32,6 +32,9 @@ enum class FriendError {
     SELF_REQUEST,
     ALREADY_FRIEND,
     DUPLICATE_REQUEST,
+
+    /** 요청·친구 관계가 이미 없어짐(REQUEST_NOT_FOUND, FRIEND_NOT_FOUND) */
+    GONE,
     NETWORK,
     UNKNOWN,
 }

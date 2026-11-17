@@ -76,6 +76,9 @@ fun SetmonNavHost(
                 navController.navigateToDay(userId = userId, date = date, readOnly = readOnly)
             },
             onCaptureClick = { navController.navigateToCapture() },
+            onFriendCalendarClick = { friendUserId, nickname ->
+                navController.navigateToCalendar(userId = friendUserId, readOnly = true, friendNickname = nickname)
+            },
             onFriendClick = { navController.navigateToFriend() },
             onMyPageClick = { navController.navigateToMyPage() },
             onBack = { navController.popBackStack() },
@@ -94,8 +97,8 @@ fun SetmonNavHost(
 
         // S-07
         friendScreen(
-            onFriendCalendarClick = { friendUserId ->
-                navController.navigateToCalendar(userId = friendUserId, readOnly = true)
+            onFriendCalendarClick = { friendUserId, nickname ->
+                navController.navigateToCalendar(userId = friendUserId, readOnly = true, friendNickname = nickname)
             },
             onBack = { navController.popBackStack() },
         )

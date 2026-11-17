@@ -27,6 +27,7 @@
     <string name="friend_error_self">내 코드로는 요청할 수 없어요</string>
     <string name="friend_error_already">이미 친구예요</string>
     <string name="friend_error_duplicate">이미 요청을 보냈거나 받았어요</string>
+    <string name="friend_error_gone">이미 처리된 요청이에요. 목록을 새로 불러왔어요</string>
     <string name="friend_error_network">인터넷 연결을 확인해 주세요</string>
     <string name="friend_error_unknown">잠시 후 다시 시도해 주세요</string>
 </resources>

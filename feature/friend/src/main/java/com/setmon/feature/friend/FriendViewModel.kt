@@ -115,7 +115,11 @@ internal class FriendViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = action()) {
                 is FriendResult.Success -> reloadLists()
-                is FriendResult.Failure -> showError(result.error)
+                is FriendResult.Failure -> {
+                    showError(result.error)
+                    // 이미 처리된 요청·끊긴 친구면 화면 목록이 낡은 것이므로 새로 불러온다
+                    if (result.error == FriendError.GONE) reloadLists()
+                }
             }
         }
     }
@@ -143,6 +147,7 @@ internal class FriendViewModel @Inject constructor(
         FriendError.SELF_REQUEST -> R.string.friend_error_self
         FriendError.ALREADY_FRIEND -> R.string.friend_error_already
         FriendError.DUPLICATE_REQUEST -> R.string.friend_error_duplicate
+        FriendError.GONE -> R.string.friend_error_gone
         FriendError.NETWORK -> R.string.friend_error_network
         FriendError.UNKNOWN -> R.string.friend_error_unknown
     }

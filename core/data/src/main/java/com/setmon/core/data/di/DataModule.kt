@@ -4,7 +4,7 @@ import com.setmon.core.data.auth.AuthRepository
 import com.setmon.core.data.auth.DefaultAuthRepository
 import com.setmon.core.data.calendar.CalendarRepository
 import com.setmon.core.data.calendar.DefaultCalendarRepository
-import com.setmon.core.data.friend.FakeFriendRepository
+import com.setmon.core.data.friend.DefaultFriendRepository
 import com.setmon.core.data.friend.FriendRepository
 import com.setmon.core.data.user.DefaultUserRepository
 import com.setmon.core.data.user.UserRepository
@@ -36,10 +36,10 @@ internal abstract class DataModule {
     @Singleton
     abstract fun bindCalendarRepository(impl: DefaultCalendarRepository): CalendarRepository
 
-    // 친구는 3주차에 서버를 연결한다
+    // 서버 없이 친구 화면만 볼 때는 FakeFriendRepository 로 바꾼다
     @Binds
     @Singleton
-    abstract fun bindFriendRepository(impl: FakeFriendRepository): FriendRepository
+    abstract fun bindFriendRepository(impl: DefaultFriendRepository): FriendRepository
 
     @Binds
     @Singleton
