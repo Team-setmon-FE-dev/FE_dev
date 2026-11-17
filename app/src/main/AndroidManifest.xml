@@ -32,6 +32,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.Setmon.Starting"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
@@ -41,7 +42,7 @@
             </intent-filter>
         </activity>
 
-        <!-- FCM: 토큰 갱신·메시지 수신 (화면 이동 라우팅은 3주차) -->
+        <!-- FCM: 토큰 갱신·메시지 수신 → 알림 표시 (push/SetmonMessagingService) -->
         <service
             android:name=".push.SetmonMessagingService"
             android:exported="false">

@@ -15,4 +15,7 @@ class DefaultUserRepository @Inject constructor(
         is ApiResult.ServerError -> MyProfileResult.Failure(MyProfileError.UNKNOWN)
         ApiResult.NetworkError -> MyProfileResult.Failure(MyProfileError.NETWORK)
     }
+
+    override suspend fun registerDeviceToken(token: String): Boolean =
+        remote.registerDeviceToken(token) is ApiResult.Success
 }

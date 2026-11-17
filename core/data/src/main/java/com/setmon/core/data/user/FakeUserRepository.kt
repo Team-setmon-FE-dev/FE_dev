@@ -17,4 +17,6 @@ class FakeUserRepository @Inject constructor() : UserRepository {
             totalRecordDays = 12,
         ),
     )
+
+    override suspend fun registerDeviceToken(token: String): Boolean = true
 }
