@@ -28,28 +28,34 @@ fun NavController.navigateToCalendar(
 
 /**
  * @param onDayClick 날짜 칸을 눌렀을 때 (userId, "yyyy-MM-dd", readOnly)
- * @param onFriendCalendarClick 책갈피의 친구 탭을 눌렀을 때 (친구 userId, 닉네임)
- * @param onFriendClick 책갈피의 + 탭 (S-07 친구 화면)
+ * @param onFriendCalendarClick 책갈피의 친구 줄을 눌렀을 때 (친구 userId, 닉네임,
+ *   replaceCurrent = 친구 달력에서 다른 친구로 바꾸는 중이라 지금 화면을 대신해야 함)
+ * @param onMyCalendarClick 친구 달력에서 마이페이지 줄을 눌렀을 때 → 내 달력
+ * @param onFriendClick 책갈피의 + 줄 (S-07 친구 화면)
+ * @param onMyPageClick 내 달력에서 마이페이지 줄을 눌렀을 때 → S-12
  */
 fun NavGraphBuilder.calendarScreen(
     onDayClick: (userId: Long, date: String, readOnly: Boolean) -> Unit,
     onCaptureClick: () -> Unit,
-    onFriendCalendarClick: (friendUserId: Long, nickname: String) -> Unit,
+    onFriendCalendarClick: (friendUserId: Long, nickname: String, replaceCurrent: Boolean) -> Unit,
+    onMyCalendarClick: () -> Unit,
     onFriendClick: () -> Unit,
     onMyPageClick: () -> Unit,
-    onBack: () -> Unit,
 ) {
     composable<CalendarRoute> { backStackEntry ->
         val route = backStackEntry.toRoute<CalendarRoute>()
         CalendarRoot(
+            userId = route.userId,
             readOnly = route.readOnly,
             friendNickname = route.friendNickname,
             onDayClick = { date -> onDayClick(route.userId, date, route.readOnly) },
             onCaptureClick = onCaptureClick,
-            onFriendCalendarClick = onFriendCalendarClick,
+            onFriendCalendarClick = { friendUserId, nickname ->
+                onFriendCalendarClick(friendUserId, nickname, route.readOnly)
+            },
+            onMyCalendarClick = onMyCalendarClick,
             onFriendClick = onFriendClick,
             onMyPageClick = onMyPageClick,
-            onBack = onBack,
         )
     }
 }

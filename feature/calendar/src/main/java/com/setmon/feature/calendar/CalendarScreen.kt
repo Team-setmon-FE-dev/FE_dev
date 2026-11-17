@@ -3,7 +3,6 @@ package com.setmon.feature.calendar
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,7 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.IconButton
@@ -42,11 +41,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.setmon.core.designsystem.component.BookmarkTab
 import com.setmon.core.designsystem.component.CalendarDayCell
 import com.setmon.core.designsystem.component.SetmonButton
 import com.setmon.core.designsystem.component.SetmonButtonType
-import com.setmon.core.designsystem.component.SetmonTopBar
 import com.setmon.core.designsystem.component.TodayCard
 import com.setmon.core.designsystem.theme.SetmonTheme
 import com.setmon.core.model.Friend
@@ -61,14 +58,15 @@ private const val BACKGROUND_OVERLAY_ALPHA = 0.53f // 피그마의 Overlay 28% +
 /** S-03 달력. 피그마 `S-03 · Main calendar` */
 @Composable
 internal fun CalendarRoot(
+    userId: Long,
     readOnly: Boolean,
     friendNickname: String?,
     onDayClick: (date: String) -> Unit,
     onCaptureClick: () -> Unit,
     onFriendCalendarClick: (friendUserId: Long, nickname: String) -> Unit,
+    onMyCalendarClick: () -> Unit,
     onFriendClick: () -> Unit,
     onMyPageClick: () -> Unit,
-    onBack: () -> Unit,
     viewModel: CalendarViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -77,6 +75,7 @@ internal fun CalendarRoot(
 
     CalendarScreen(
         uiState = uiState,
+        userId = userId,
         readOnly = readOnly,
         friendNickname = friendNickname,
         onPreviousMonth = viewModel::showPreviousMonth,
@@ -85,15 +84,16 @@ internal fun CalendarRoot(
         onDayClick = onDayClick,
         onCaptureClick = onCaptureClick,
         onFriendCalendarClick = onFriendCalendarClick,
+        onMyCalendarClick = onMyCalendarClick,
         onFriendClick = onFriendClick,
         onMyPageClick = onMyPageClick,
-        onBack = onBack,
     )
 }
 
 @Composable
 private fun CalendarScreen(
     uiState: CalendarUiState,
+    userId: Long,
     readOnly: Boolean,
     friendNickname: String?,
     onPreviousMonth: () -> Unit,
@@ -102,9 +102,9 @@ private fun CalendarScreen(
     onDayClick: (date: String) -> Unit,
     onCaptureClick: () -> Unit,
     onFriendCalendarClick: (friendUserId: Long, nickname: String) -> Unit,
+    onMyCalendarClick: () -> Unit,
     onFriendClick: () -> Unit,
     onMyPageClick: () -> Unit,
-    onBack: () -> Unit,
 ) {
     val colors = SetmonTheme.colors
     val shape = SetmonTheme.shapes.thumbnail
@@ -123,41 +123,22 @@ private fun CalendarScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .systemBarsPadding()
+                // 위쪽은 책갈피가 상태 표시줄 뒤까지 칠하므로 아래쪽만 띄운다
+                .navigationBarsPadding()
                 .verticalScroll(rememberScrollState()),
         ) {
-            if (readOnly) {
-                SetmonTopBar(
-                    title = friendNickname
-                        ?.let { stringResource(R.string.calendar_friend_title_named, it) }
-                        ?: stringResource(R.string.calendar_friend_title),
-                    onBack = onBack,
-                    readOnly = true,
-                )
-            } else {
-                // 책갈피 탭: 마이페이지 · 친구들(닉네임순) · +. 친구가 많으면 옆으로 밀어서 본다
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 24.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    BookmarkTab(
-                        label = stringResource(R.string.calendar_my_page),
-                        selected = true,
-                        onClick = onMyPageClick,
-                    )
-                    uiState.friends.forEach { friend ->
-                        BookmarkTab(
-                            label = friend.nickname,
-                            selected = false,
-                            onClick = { onFriendCalendarClick(friend.userId, friend.nickname) },
-                        )
-                    }
-                    BookmarkTab(label = "+", selected = false, onClick = onFriendClick)
-                }
-            }
+            BookmarkStack(
+                items = bookmarkItems(
+                    userId = userId,
+                    readOnly = readOnly,
+                    friendNickname = friendNickname,
+                    friends = uiState.friends,
+                    onMyCalendarClick = onMyCalendarClick,
+                    onMyPageClick = onMyPageClick,
+                    onFriendCalendarClick = onFriendCalendarClick,
+                    onFriendClick = onFriendClick,
+                ),
+            )
 
             MonthHeading(month = uiState.month, onPrevious = onPreviousMonth, onNext = onNextMonth)
 
@@ -234,6 +215,53 @@ private fun CalendarScreen(
                     .padding(top = 12.dp, end = 20.dp, bottom = 16.dp),
             )
         }
+    }
+}
+
+/**
+ * 책갈피 줄: 마이페이지 · 친구들(닉네임순) · +
+ * - 내 달력: 마이페이지 줄이 선택됨. 누르면 S-12, 친구 줄은 그 친구 달력
+ * - 친구 달력: 그 친구 줄이 선택됨. 마이페이지 줄은 내 달력으로, 다른 친구 줄은 그 친구 달력으로 바꾼다
+ */
+@Composable
+private fun bookmarkItems(
+    userId: Long,
+    readOnly: Boolean,
+    friendNickname: String?,
+    friends: List<Friend>,
+    onMyCalendarClick: () -> Unit,
+    onMyPageClick: () -> Unit,
+    onFriendCalendarClick: (friendUserId: Long, nickname: String) -> Unit,
+    onFriendClick: () -> Unit,
+): List<BookmarkItem> {
+    val myLabel = stringResource(R.string.calendar_my_page)
+    // 친구 목록을 받기 전에도 지금 보는 친구 줄은 보이게 한다
+    val shownFriends = if (readOnly && friendNickname != null && friends.none { it.userId == userId }) {
+        (friends + Friend(userId, friendNickname)).sortedBy { it.nickname }
+    } else {
+        friends
+    }
+    return buildList {
+        add(
+            BookmarkItem(
+                key = "me",
+                label = myLabel,
+                selected = !readOnly,
+                onClick = if (readOnly) onMyCalendarClick else onMyPageClick,
+            ),
+        )
+        shownFriends.forEach { friend ->
+            val selected = readOnly && friend.userId == userId
+            add(
+                BookmarkItem(
+                    key = friend.userId,
+                    label = friend.nickname,
+                    selected = selected,
+                    onClick = { if (!selected) onFriendCalendarClick(friend.userId, friend.nickname) },
+                ),
+            )
+        }
+        add(BookmarkItem(key = "add", label = "+", selected = false, onClick = onFriendClick))
     }
 }
 
@@ -359,6 +387,7 @@ private fun CalendarScreenPreview() {
     val month = YearMonth.from(today)
     SetmonTheme {
         CalendarScreen(
+            userId = 1L,
             uiState = CalendarUiState(
                 month = month,
                 today = today,
@@ -373,9 +402,9 @@ private fun CalendarScreenPreview() {
             onDayClick = {},
             onCaptureClick = {},
             onFriendCalendarClick = { _, _ -> },
+            onMyCalendarClick = {},
             onFriendClick = {},
             onMyPageClick = {},
-            onBack = {},
         )
     }
 }

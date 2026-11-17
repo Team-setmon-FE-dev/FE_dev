@@ -30,7 +30,7 @@ internal data class CalendarUiState(
     val today: LocalDate,
     val weeks: List<List<CalendarCell>>,
     val todayClipCount: Int = 0,
-    /** 내 달력 책갈피에 보이는 친구 탭 (친구 달력에서는 비어 있다) */
+    /** 책갈피에 보이는 친구 줄 (내 달력·친구 달력 모두) */
     val friends: List<Friend> = emptyList(),
     val isLoading: Boolean = false,
     @param:StringRes val error: Int? = null,
@@ -66,7 +66,7 @@ internal class CalendarViewModel @Inject constructor(
         val currentMonth = YearMonth.from(today)
         if (currentMonth != visibleMonth) refreshCurrentMonth(currentMonth)
 
-        if (!route.readOnly) refreshFriends()
+        refreshFriends()
     }
 
     fun showPreviousMonth() = showMonth(_uiState.value.month.minusMonths(1))

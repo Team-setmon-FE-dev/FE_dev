@@ -18,6 +18,7 @@ import com.setmon.feature.auth.navigation.navigateToLogin
 import com.setmon.feature.auth.navigation.navigateToSignup
 import com.setmon.feature.auth.navigation.signupScreen
 import com.setmon.feature.auth.navigation.splashScreen
+import com.setmon.feature.calendar.navigation.CalendarRoute
 import com.setmon.feature.calendar.navigation.calendarScreen
 import com.setmon.feature.calendar.navigation.navigateToCalendar
 import com.setmon.feature.capture.navigation.captureScreen
@@ -123,12 +124,24 @@ fun SetmonNavHost(
                 navController.navigateToDay(userId = userId, date = date, readOnly = readOnly)
             },
             onCaptureClick = { navController.navigateToCapture() },
-            onFriendCalendarClick = { friendUserId, nickname ->
-                navController.navigateToCalendar(userId = friendUserId, readOnly = true, friendNickname = nickname)
+            onFriendCalendarClick = { friendUserId, nickname, replaceCurrent ->
+                navController.navigateToCalendar(
+                    userId = friendUserId,
+                    readOnly = true,
+                    friendNickname = nickname,
+                    // 친구 달력끼리 옮겨 다닐 때는 쌓지 않고 바꾼다 (뒤로 가기 한 번이면 원래 화면)
+                    navOptions = if (replaceCurrent) {
+                        navOptions { popUpTo<CalendarRoute> { inclusive = true } }
+                    } else {
+                        null
+                    },
+                )
+            },
+            onMyCalendarClick = {
+                myUserId?.let { navController.navigateToCalendar(userId = it, readOnly = false, navOptions = clearAll()) }
             },
             onFriendClick = { navController.navigateToFriend() },
             onMyPageClick = { navController.navigateToMyPage() },
-            onBack = { navController.popBackStack() },
         )
 
         // S-04 (B 담당)
