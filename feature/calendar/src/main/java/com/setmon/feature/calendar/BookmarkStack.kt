@@ -48,15 +48,18 @@ internal data class BookmarkItem(
     val onClick: () -> Unit,
 )
 
-private val ROW_STEP = 26.dp // 줄과 줄 사이 (밴드가 겹쳐 쌓인다)
-private val BAND_HEIGHT = 22.dp // 가로 전체 밴드
-private val TAB_HEIGHT = 38.dp // 밴드 윗선부터 튀어나온 탭 아랫선까지
+private val ROW_STEP = 26.dp // 줄과 줄 사이
+private val BAND_HEIGHT = 32.dp // 가로 전체 밴드. ROW_STEP 보다 커야 아래 줄 밴드 밑으로 들어가 틈이 안 생긴다
+private val TAB_HEIGHT = 44.dp // 밴드 윗선부터 튀어나온 탭 아랫선까지 (밴드 아래로 12dp)
 private val TAB_CORNER = 8.dp
 private val TAB_TEXT_PADDING = 20.dp
 private val TAB_MIN_WIDTH = 96.dp
 private val TAB_MAX_WIDTH = 168.dp
 private val TAB_EDGE = 12.dp
-private val SHADOW_OFFSET = 1.5.dp
+/** 그림자: 아래로 조금씩 더 내려가며 옅게 여러 번 칠해 번지는 모양을 만든다 (기기 버전과 상관없이 같은 모양) */
+private val SHADOW_OFFSET = 4.dp
+private const val SHADOW_LAYERS = 4
+private const val SHADOW_LAYER_ALPHA = 0.07f
 
 /** 친구가 0~2명이어도 달력이 위로 몰리지 않게 이만큼의 줄 높이는 비워 둔다 */
 private const val MIN_ROWS = 4
@@ -135,7 +138,7 @@ private fun BookmarkRow(
         .coerceAtLeast(TAB_EDGE)
 
     val fill = if (item.selected) colors.primary else colors.surface
-    val shadow = colors.shadow.copy(alpha = 0.14f)
+    val shadow = colors.shadow.copy(alpha = SHADOW_LAYER_ALPHA)
 
     Box(
         modifier
@@ -162,8 +165,11 @@ private fun BookmarkRow(
                         ),
                     )
                 }
-                // 아래 줄에 얕은 그림자 (기기 버전과 상관없이 같은 모양)
-                translate(top = SHADOW_OFFSET.toPx()) { drawPath(path, shadow) }
+                // 아래 줄 위로 번지는 그림자
+                val step = SHADOW_OFFSET.toPx() / SHADOW_LAYERS
+                for (layer in 1..SHADOW_LAYERS) {
+                    translate(top = step * layer) { drawPath(path, shadow) }
+                }
                 drawPath(path, fill)
             },
     ) {
@@ -175,7 +181,7 @@ private fun BookmarkRow(
                 .semantics { selected = item.selected }
                 .clickable(role = Role.Tab, onClick = item.onClick)
                 .padding(horizontal = 8.dp)
-                .padding(bottom = 6.dp),
+                .padding(bottom = 7.dp),
             contentAlignment = Alignment.BottomCenter,
         ) {
             Text(
