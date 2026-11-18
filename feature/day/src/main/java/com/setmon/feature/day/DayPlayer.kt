@@ -1,5 +1,6 @@
 package com.setmon.feature.day
 
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -51,6 +52,8 @@ import com.setmon.core.model.DayVlogStatus
 /** 화면 높이에서 플레이어가 차지할 수 있는 최대 비율 (아래 타임라인·버튼이 한 화면에 보이게) */
 private const val MAX_HEIGHT_FRACTION = 0.55f
 
+private const val TAG = "SetmonPlayer"
+
 /** 클립·브이로그는 세로 720x1280 */
 private const val VIDEO_ASPECT = 9f / 16f
 
@@ -84,6 +87,8 @@ internal fun DayPlayer(
             }
 
             override fun onPlayerError(error: PlaybackException) {
+                // Logcat 검색창에 SetmonPlayer
+                Log.w(TAG, "재생 실패 ${error.errorCodeName}", error)
                 currentOnError()
             }
         }
@@ -117,23 +122,7 @@ internal fun DayPlayer(
             .heightIn(max = maxHeight)
             .aspectRatio(VIDEO_ASPECT)
             .clip(SetmonTheme.shapes.card)
-            .background(colors.textPrimary)
-            .then(
-                if (playback != null) {
-                    Modifier
-                        .semantics { contentDescription = playLabel }
-                        .clickable {
-                            if (exoPlayer.isPlaying) {
-                                exoPlayer.pause()
-                            } else {
-                                if (exoPlayer.playbackState == Player.STATE_ENDED) exoPlayer.seekTo(0, 0)
-                                exoPlayer.play()
-                            }
-                        }
-                } else {
-                    Modifier
-                },
-            ),
+            .background(colors.textPrimary),
         contentAlignment = Alignment.Center,
     ) {
         AndroidView(
@@ -157,6 +146,29 @@ internal fun DayPlayer(
                 placeholder = ColorPainter(colors.outline),
                 error = ColorPainter(colors.outline),
                 modifier = Modifier.fillMaxSize(),
+            )
+        }
+
+        // 터치 판: PlayerView(안드로이드 View)가 터치를 먼저 가져가서 바깥 Box 의 clickable 이 안 불렸다.
+        // 영상·썸네일 위에 투명한 판을 올려 여기서 재생/일시정지를 받는다.
+        if (playback != null) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .semantics { contentDescription = playLabel }
+                    .clickable {
+                        if (exoPlayer.isPlaying) {
+                            exoPlayer.pause()
+                        } else {
+                            when (exoPlayer.playbackState) {
+                                // 에러 뒤에는 IDLE 로 멈춰 있어서 다시 준비시켜야 한다
+                                Player.STATE_IDLE -> exoPlayer.prepare()
+                                Player.STATE_ENDED -> exoPlayer.seekTo(0, 0)
+                                else -> Unit
+                            }
+                            exoPlayer.play()
+                        }
+                    },
             )
         }
 

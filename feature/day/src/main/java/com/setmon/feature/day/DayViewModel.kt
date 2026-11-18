@@ -198,7 +198,10 @@ internal class DayViewModel @Inject constructor(
 
     /** 재생 실패. 대부분 주소(1시간 유효) 만료라 한 번만 새로 받아 다시 채운다 */
     fun onPlaybackError() {
-        if (retriedPlayback) return
+        if (retriedPlayback) {
+            showMessage(R.string.day_play_error, isError = true)
+            return
+        }
         retriedPlayback = true
         load { _uiState.update { it.copy(playbackVersion = it.playbackVersion + 1) } }
     }

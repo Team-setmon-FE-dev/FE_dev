@@ -11,6 +11,7 @@
     <string name="day_play">재생</string>
     <string name="day_pause">일시정지</string>
     <string name="day_retry">다시 시도</string>
+    <string name="day_play_error">영상을 재생하지 못했어요. 잠시 후 다시 눌러 주세요</string>
 
     <!-- 상태 배지 -->
     <string name="day_status_generating">만드는 중</string>
