@@ -63,6 +63,7 @@ internal data class DayUiState(
     val playbackVersion: Int = 0,
     val isRequesting: Boolean = false,
     val isSaving: Boolean = false,
+    val isUpdatingCover: Boolean = false,
     @param:StringRes val message: Int? = null,
     val messageIsError: Boolean = false,
     val deleteTarget: DayClip? = null,
@@ -77,6 +78,10 @@ internal data class DayUiState(
     val canMakeVlog: Boolean get() = !readOnly && isToday
 
     /** 완성된 브이로그가 있을 때만 저장·공유 (친구 것은 안 보인다) */
+    /** 타임라인에서 고른 내 클립 (대표 지정 버튼용) */
+    val selectedClip: DayClip?
+        get() = if (readOnly) null else day?.clips?.firstOrNull { it.id == selectedClipId }
+
     val canSave: Boolean
         get() = !readOnly && day?.vlog?.let { it.status == DayVlogStatus.DONE && it.videoUrl != null } == true
 
@@ -242,6 +247,25 @@ internal class DayViewModel @Inject constructor(
                     load()
                 }
                 else -> showMessage(error.messageRes(), isError = true)
+            }
+        }
+    }
+
+    /** 고른 클립을 그날 달력 칸 대표로 지정하거나(이미 대표면) 해제한다 */
+    fun toggleCover() {
+        val state = _uiState.value
+        if (state.readOnly || state.isUpdatingCover) return
+        val clip = state.day?.clips?.firstOrNull { it.id == state.selectedClipId } ?: return
+        val makeCover = !clip.isCover
+        _uiState.update { it.copy(isUpdatingCover = true, message = null) }
+        viewModelScope.launch {
+            val error = dayRepository.setCover(clip.id, makeCover)
+            _uiState.update { it.copy(isUpdatingCover = false) }
+            if (error == null) {
+                showMessage(if (makeCover) R.string.day_cover_set else R.string.day_cover_cleared, isError = false)
+                load()
+            } else {
+                showMessage(error.messageRes(), isError = true)
             }
         }
     }

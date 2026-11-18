@@ -88,6 +88,7 @@ internal fun DayRoot(
         onMakeVlog = viewModel::makeVlog,
         onSave = viewModel::saveToPhone,
         onShare = viewModel::share,
+        onToggleCover = viewModel::toggleCover,
     )
 
     uiState.deleteTarget?.let { clip ->
@@ -114,6 +115,7 @@ private fun DayScreen(
     onMakeVlog: () -> Unit,
     onSave: () -> Unit,
     onShare: () -> Unit,
+    onToggleCover: () -> Unit,
 ) {
     val colors = SetmonTheme.colors
     val spacing = SetmonTheme.spacing
@@ -191,6 +193,21 @@ private fun DayScreen(
                     style = SetmonTheme.typography.caption,
                     color = colors.textSecondary,
                     modifier = Modifier.padding(top = spacing.xxs),
+                )
+            }
+
+            // 칸을 눌러 고른 내 클립이 있으면: 달력 칸 대표로 지정 / 해제
+            uiState.selectedClip?.let { clip ->
+                SetmonButton(
+                    text = if (clip.isCover) {
+                        stringResource(R.string.day_cover_clear_button)
+                    } else {
+                        stringResource(R.string.day_cover_set_button, clip.slotHour)
+                    },
+                    onClick = onToggleCover,
+                    type = SetmonButtonType.Text,
+                    loading = uiState.isUpdatingCover,
+                    modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = spacing.xs),
                 )
             }
 
@@ -292,6 +309,19 @@ private fun Timeline(
                                 .padding(if (selected) 3.dp else 0.dp)
                                 .clip(if (selected) shapes.thumbnailInner else shapes.thumbnail),
                         )
+                        // 달력 칸 대표로 고른 클립
+                        if (clip.isCover) {
+                            Text(
+                                text = stringResource(R.string.day_cover_badge),
+                                style = SetmonTheme.typography.caption,
+                                color = colors.onPrimary,
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .padding(bottom = 4.dp)
+                                    .background(colors.primary, shapes.pill)
+                                    .padding(horizontal = 6.dp, vertical = 1.dp),
+                            )
+                        }
                     }
                 }
                 Text(

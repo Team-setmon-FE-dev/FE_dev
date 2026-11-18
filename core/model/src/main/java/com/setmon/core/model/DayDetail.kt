@@ -28,6 +28,8 @@ data class DayClip(
     /** 1시간 유효 */
     val videoUrl: String,
     val thumbnailUrl: String?,
+    /** 사용자가 고른 그날 달력 칸 대표 (하루 최대 1개) */
+    val isCover: Boolean = false,
 )
 
 /** S-05 하루 상세 (GET /api/users/{userId}/days/{date}) */

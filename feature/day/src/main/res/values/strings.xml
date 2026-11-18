@@ -34,7 +34,14 @@
     <string name="day_delete_confirm">삭제</string>
     <string name="day_delete_cancel">취소</string>
     <string name="day_delete_done">클립을 삭제했어요</string>
-    <string name="day_delete_hint">내 클립은 길게 눌러 삭제할 수 있어요</string>
+    <string name="day_delete_hint">클립을 눌러 달력 대표로 고르고, 길게 눌러 삭제할 수 있어요</string>
+
+    <!-- 달력 칸 대표 (썸네일 고르기) -->
+    <string name="day_cover_set_button">%1$02d:00 클립을 달력 대표로</string>
+    <string name="day_cover_clear_button">달력 대표 해제 (자동으로)</string>
+    <string name="day_cover_set">달력 칸 사진을 바꿨어요</string>
+    <string name="day_cover_cleared">달력 칸 사진을 자동으로 되돌렸어요</string>
+    <string name="day_cover_badge">대표</string>
 
     <!-- 불러오기 -->
     <string name="day_error_forbidden">친구가 아니라서 볼 수 없어요</string>
