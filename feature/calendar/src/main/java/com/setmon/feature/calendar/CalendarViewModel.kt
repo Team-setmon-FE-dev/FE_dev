@@ -1,5 +1,7 @@
 package com.setmon.feature.calendar
 
+import android.content.Intent
+import android.graphics.Bitmap
 import androidx.annotation.StringRes
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -16,6 +18,7 @@ import com.setmon.core.model.todayInKorea
 import com.setmon.feature.calendar.navigation.CalendarRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,6 +37,14 @@ internal data class CalendarUiState(
     val friends: List<Friend> = emptyList(),
     val isLoading: Boolean = false,
     @param:StringRes val error: Int? = null,
+    /** 달력 사진 저장·공유 */
+    val isSavingImage: Boolean = false,
+    @param:StringRes val imageMessage: Int? = null,
+    val imageMessageIsError: Boolean = false,
+    /** Android 8~9 저장 권한을 화면이 요청해야 함 */
+    val needsStoragePermission: Boolean = false,
+    /** 화면이 띄울 공유 시트 */
+    val shareIntent: Intent? = null,
 )
 
 @HiltViewModel
@@ -41,6 +52,7 @@ internal class CalendarViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val calendarRepository: CalendarRepository,
     private val friendRepository: FriendRepository,
+    private val imageSaver: CalendarImageSaver,
 ) : ViewModel() {
 
     private val route: CalendarRoute = savedStateHandle.toRoute<CalendarRoute>()
@@ -117,6 +129,69 @@ internal class CalendarViewModel @Inject constructor(
         }
     }
 
+    // ---- 한 달 달력 사진 저장·공유 ----
+
+    /** 권한 요청 뒤 이어서 저장하려고 남겨 둔다 */
+    private var pendingImage: Pair<Bitmap, Boolean>? = null
+    private var messageJob: Job? = null
+
+    /**
+     * 화면이 뜬 달력 그림을 저장한다. share = true 면 저장 후 공유 시트.
+     * @param image null 이면 화면에서 그림을 뜨지 못한 것
+     */
+    fun saveImage(image: Bitmap?, backgroundColor: Int, share: Boolean) {
+        if (image == null) {
+            showImageMessage(R.string.calendar_image_error, isError = true)
+            return
+        }
+        if (_uiState.value.isSavingImage) return
+        _uiState.update { it.copy(isSavingImage = true, imageMessage = null) }
+        viewModelScope.launch {
+            val month = _uiState.value.month
+            when (val result = imageSaver.save(image, backgroundColor, fileName = "setmon_$month")) {
+                is CalendarImageResult.Success -> {
+                    pendingImage = null
+                    _uiState.update { it.copy(isSavingImage = false) }
+                    if (share) {
+                        _uiState.update { it.copy(shareIntent = imageSaver.shareIntent(result.uri, title = "setmon $month")) }
+                    } else {
+                        showImageMessage(R.string.calendar_image_saved, isError = false)
+                    }
+                }
+                CalendarImageResult.PermissionRequired -> {
+                    pendingImage = image to share
+                    _uiState.update { it.copy(isSavingImage = false, needsStoragePermission = true) }
+                }
+                CalendarImageResult.Failure -> {
+                    _uiState.update { it.copy(isSavingImage = false) }
+                    showImageMessage(R.string.calendar_image_error, isError = true)
+                }
+            }
+        }
+    }
+
+    fun onStoragePermissionResult(granted: Boolean, backgroundColor: Int) {
+        _uiState.update { it.copy(needsStoragePermission = false) }
+        val pending = pendingImage
+        pendingImage = null
+        when {
+            !granted -> showImageMessage(R.string.calendar_image_error_permission, isError = true)
+            pending != null -> saveImage(pending.first, backgroundColor, pending.second)
+        }
+    }
+
+    fun onShareShown() = _uiState.update { it.copy(shareIntent = null) }
+
+    /** 안내 문구는 3초 뒤 사라진다 */
+    private fun showImageMessage(@StringRes message: Int, isError: Boolean) {
+        _uiState.update { it.copy(imageMessage = message, imageMessageIsError = isError) }
+        messageJob?.cancel()
+        messageJob = viewModelScope.launch {
+            delay(MESSAGE_MILLIS)
+            _uiState.update { it.copy(imageMessage = null) }
+        }
+    }
+
     private fun render() = _uiState.update { state ->
         state.copy(
             weeks = buildCalendarWeeks(state.month, state.today, loadedMonths[state.month].orEmpty()),
@@ -132,3 +207,5 @@ internal class CalendarViewModel @Inject constructor(
         CalendarError.UNKNOWN -> R.string.calendar_error_unknown
     }
 }
+
+private const val MESSAGE_MILLIS = 3_000L
