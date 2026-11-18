@@ -2,6 +2,7 @@ package com.setmon.core.data.user
 
 import com.setmon.core.model.MOCK_MY_USER_ID
 import com.setmon.core.model.MyProfile
+import com.setmon.core.model.NotificationSettings
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -17,4 +18,14 @@ class FakeUserRepository @Inject constructor() : UserRepository {
             totalRecordDays = 12,
         ),
     )
+
+    override suspend fun registerDeviceToken(token: String): Boolean = true
+
+    override suspend fun updateSettings(settings: NotificationSettings): MyProfileResult =
+        when (val me = getMyProfile()) {
+            is MyProfileResult.Success -> MyProfileResult.Success(me.profile.copy(settings = settings))
+            is MyProfileResult.Failure -> me
+        }
+
+    override suspend fun withdraw(): Boolean = true
 }

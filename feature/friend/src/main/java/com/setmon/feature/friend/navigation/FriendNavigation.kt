@@ -15,10 +15,10 @@ fun NavController.navigateToFriend(navOptions: NavOptions? = null) =
     navigate(FriendRoute, navOptions)
 
 /**
- * @param onFriendCalendarClick 친구를 눌렀을 때 (친구 userId). app이 달력을 읽기 전용으로 연다.
+ * @param onFriendCalendarClick 친구를 눌렀을 때 (친구 userId, 닉네임). app이 달력을 읽기 전용으로 연다.
  */
 fun NavGraphBuilder.friendScreen(
-    onFriendCalendarClick: (friendUserId: Long) -> Unit,
+    onFriendCalendarClick: (friendUserId: Long, nickname: String) -> Unit,
     onBack: () -> Unit,
 ) {
     composable<FriendRoute> {

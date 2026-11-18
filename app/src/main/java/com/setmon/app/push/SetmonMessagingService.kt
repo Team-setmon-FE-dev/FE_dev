@@ -3,21 +3,26 @@ package com.setmon.app.push
 import android.util.Log
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 /**
- * FCM 수신 지점.
- * - 1주차: 토큰 갱신·메시지 도착을 로그로만 남긴다.
- * - 3주차: 알림 종류(촬영 / 완성)별로 알림을 띄우고, 탭하면 S-04 / 해당 날짜 S-05 로 연다.
- *   메시지 형식은 C가 월요일에 넘겨주는 FCM 메시지 형식(type, date)에 맞춘다.
+ * FCM 수신 지점. 서버 형식은 BE_dev docs/FCM.md (data-only: type, date, title, body)
+ * - 토큰이 바뀌면 서버에 다시 등록한다
+ * - 메시지가 오면 알림을 띄우고, 탭하면 MainActivity 가 S-04 / 그날 S-05 로 연다
  */
+@AndroidEntryPoint
 class SetmonMessagingService : FirebaseMessagingService() {
+    @Inject lateinit var tokenRegistrar: PushTokenRegistrar
+    @Inject lateinit var notifier: PushNotifier
 
     override fun onNewToken(token: String) {
-        Log.d(FcmTokenLogger.TAG, "FCM token refreshed = $token")
-        // TODO(3주차): 로그인 상태면 PUT /api/users/me/device-token
+        Log.d(PushTokenRegistrar.TAG, "FCM token refreshed")
+        tokenRegistrar.register(token)
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
-        Log.d(FcmTokenLogger.TAG, "message from=${message.from} data=${message.data} title=${message.notification?.title}")
+        Log.d(PushTokenRegistrar.TAG, "message from=${message.from} data=${message.data}")
+        notifier.show(message.data)
     }
 }

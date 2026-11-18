@@ -48,10 +48,10 @@ import com.setmon.core.designsystem.theme.SetmonTheme
 import com.setmon.core.model.Friend
 import com.setmon.core.model.FriendRequest
 
-/** S-07 친구 (Mock). 피그마 `S-07 · Friends`. 서버 연결은 3주차 */
+/** S-07 친구. 피그마 `S-07 · Friends` */
 @Composable
 internal fun FriendRoot(
-    onFriendCalendarClick: (friendUserId: Long) -> Unit,
+    onFriendCalendarClick: (friendUserId: Long, nickname: String) -> Unit,
     onBack: () -> Unit,
     viewModel: FriendViewModel = hiltViewModel(),
 ) {
@@ -65,7 +65,7 @@ internal fun FriendRoot(
         onAccept = viewModel::accept,
         onDecline = viewModel::decline,
         onRemove = viewModel::askRemove,
-        onFriendClick = { friend -> onFriendCalendarClick(friend.userId) },
+        onFriendClick = { friend -> onFriendCalendarClick(friend.userId, friend.nickname) },
         onBack = onBack,
     )
 

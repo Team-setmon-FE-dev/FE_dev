@@ -50,6 +50,8 @@ dependencies {
     // S-00 시스템 스플래시 (Android 11 이하에서도 같은 모양)
     implementation(libs.androidx.core.splashscreen)
 
+    implementation(libs.kotlinx.coroutines.core) // 기기 토큰 등록 (push/PushTokenRegistrar)
+
     // 푸시 (FCM)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)

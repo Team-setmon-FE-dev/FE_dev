@@ -1,5 +1,14 @@
 package com.setmon.feature.calendar
 
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.net.Uri
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -13,20 +22,35 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -41,65 +65,145 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.setmon.core.designsystem.component.BookmarkTab
 import com.setmon.core.designsystem.component.CalendarDayCell
+import com.setmon.core.designsystem.component.ConfirmDialog
 import com.setmon.core.designsystem.component.SetmonButton
 import com.setmon.core.designsystem.component.SetmonButtonType
-import com.setmon.core.designsystem.component.SetmonTopBar
 import com.setmon.core.designsystem.component.TodayCard
 import com.setmon.core.designsystem.theme.SetmonTheme
+import com.setmon.core.model.Friend
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle as DateTextStyle
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 private val SWIPE_THRESHOLD = 64.dp
+
+/** 촬영에 필요한 권한 (B 의 CaptureScreen 과 같음) */
+private val CAPTURE_PERMISSIONS = arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
+
+private fun Context.isGranted(permission: String): Boolean =
+    ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
 private const val BACKGROUND_OVERLAY_ALPHA = 0.53f // 피그마의 Overlay 28% + BackgroundFilter 35%
 
 /** S-03 달력. 피그마 `S-03 · Main calendar` */
 @Composable
 internal fun CalendarRoot(
+    userId: Long,
     readOnly: Boolean,
+    friendNickname: String?,
     onDayClick: (date: String) -> Unit,
     onCaptureClick: () -> Unit,
+    onFriendCalendarClick: (friendUserId: Long, nickname: String) -> Unit,
+    onMyCalendarClick: () -> Unit,
     onFriendClick: () -> Unit,
     onMyPageClick: () -> Unit,
-    onBack: () -> Unit,
     viewModel: CalendarViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // 달력 사진에서 투명한 곳(배경 사진 자리)을 채울 색. 잡지 배경은 시연용이라 저장 사진엔 넣지 않는다
+    val imageBackground = SetmonTheme.colors.background.toArgb()
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
 
+    // 촬영 버튼: 카메라·마이크 권한을 먼저 확인한다. 거부돼 있으면 한 번 더 요청하고,
+    // 그래도 안 되면("다시 묻지 않음" 포함) 안내 후 휴대폰 설정 화면으로 보낸다
+    val context = LocalContext.current
+    var showPermissionGuide by remember { mutableStateOf(false) }
+    val capturePermissions = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { results ->
+        if (results.values.all { it }) onCaptureClick() else showPermissionGuide = true
+    }
+    val onRecordClick = {
+        if (CAPTURE_PERMISSIONS.all { context.isGranted(it) }) {
+            onCaptureClick()
+        } else {
+            capturePermissions.launch(CAPTURE_PERMISSIONS)
+        }
+    }
+    if (showPermissionGuide) {
+        ConfirmDialog(
+            title = stringResource(R.string.calendar_permission_title),
+            message = stringResource(R.string.calendar_permission_message),
+            confirmLabel = stringResource(R.string.calendar_permission_open_settings),
+            dismissLabel = stringResource(R.string.calendar_permission_cancel),
+            onConfirm = {
+                showPermissionGuide = false
+                context.startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            },
+            onDismiss = { showPermissionGuide = false },
+        )
+    }
+
+    // Android 8~9 에서만 필요한 저장 권한
+    val storagePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        viewModel.onStoragePermissionResult(granted, imageBackground)
+    }
+    LaunchedEffect(uiState.needsStoragePermission) {
+        if (uiState.needsStoragePermission) storagePermission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+    }
+
     CalendarScreen(
         uiState = uiState,
+        userId = userId,
         readOnly = readOnly,
+        friendNickname = friendNickname,
         onPreviousMonth = viewModel::showPreviousMonth,
         onNextMonth = viewModel::showNextMonth,
         onRetry = viewModel::retry,
         onDayClick = onDayClick,
-        onCaptureClick = onCaptureClick,
+        onCaptureClick = onRecordClick,
+        onFriendCalendarClick = onFriendCalendarClick,
+        onMyCalendarClick = onMyCalendarClick,
         onFriendClick = onFriendClick,
         onMyPageClick = onMyPageClick,
-        onBack = onBack,
+        onImageCaptured = { image -> viewModel.saveImage(image, imageBackground) },
     )
 }
 
 @Composable
 private fun CalendarScreen(
     uiState: CalendarUiState,
+    userId: Long,
     readOnly: Boolean,
+    friendNickname: String?,
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit,
     onRetry: () -> Unit,
     onDayClick: (date: String) -> Unit,
     onCaptureClick: () -> Unit,
+    onFriendCalendarClick: (friendUserId: Long, nickname: String) -> Unit,
+    onMyCalendarClick: () -> Unit,
     onFriendClick: () -> Unit,
     onMyPageClick: () -> Unit,
-    onBack: () -> Unit,
+    /** 달력 그림을 떴을 때 (실패하면 null) */
+    onImageCaptured: (image: Bitmap?) -> Unit,
 ) {
     val colors = SetmonTheme.colors
     val shape = SetmonTheme.shapes.thumbnail
+
+    // 한 달 달력 사진: 월 제목 ~ 달력 종이 ~ setmon 로고를 이 레이어에 그려 두고, 저장할 때 그림으로 뜬다
+    val captureLayer = rememberGraphicsLayer()
+    var capturing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    fun captureImage() {
+        if (capturing) return
+        scope.launch {
+            // 촬영 버튼·화살표를 숨긴 화면이 한 번 그려지길 기다린 뒤 뜬다 (아주 잠깐 깜박인다)
+            capturing = true
+            withFrameNanos { }
+            withFrameNanos { }
+            val image = runCatching { captureLayer.toImageBitmap().asAndroidBitmap() }.getOrNull()
+            capturing = false
+            onImageCaptured(image)
+        }
+    }
+
     Box(Modifier.fillMaxSize()) {
         Image(
             painter = painterResource(R.drawable.calendar_background),
@@ -115,110 +219,192 @@ private fun CalendarScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .systemBarsPadding()
+                // 위쪽은 책갈피가 상태 표시줄 뒤까지 칠하므로 아래쪽만 띄운다
+                .navigationBarsPadding()
                 .verticalScroll(rememberScrollState()),
         ) {
-            if (readOnly) {
-                SetmonTopBar(
-                    title = stringResource(R.string.calendar_friend_title),
-                    onBack = onBack,
-                    readOnly = true,
-                )
-            } else {
-                // 책갈피 탭. 친구별 탭은 친구 API 연결(3주차) 때 + 앞에 추가한다
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    BookmarkTab(
-                        label = stringResource(R.string.calendar_my_page),
-                        selected = true,
-                        onClick = onMyPageClick,
-                    )
-                    BookmarkTab(label = "+", selected = false, onClick = onFriendClick)
-                }
-            }
+            BookmarkStack(
+                items = bookmarkItems(
+                    userId = userId,
+                    readOnly = readOnly,
+                    friendNickname = friendNickname,
+                    friends = uiState.friends,
+                    onMyCalendarClick = onMyCalendarClick,
+                    onMyPageClick = onMyPageClick,
+                    onFriendCalendarClick = onFriendCalendarClick,
+                    onFriendClick = onFriendClick,
+                ),
+            )
 
-            MonthHeading(month = uiState.month, onPrevious = onPreviousMonth, onNext = onNextMonth)
-
-            Box(Modifier.fillMaxWidth().padding(top = 36.dp)) {
+            Box(Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = SetmonTheme.spacing.screenHorizontal)
-                        .shadow(elevation = 4.dp, shape = shape)
-                        .background(colors.surface, shape)
-                        .padding(horizontal = 4.dp, vertical = 12.dp),
+                        .drawWithContent {
+                            captureLayer.record { this@drawWithContent.drawContent() }
+                            drawLayer(captureLayer)
+                        },
                 ) {
-                    WeekdayHeader()
-                    Rule()
-                    if (uiState.isLoading) {
-                        LinearProgressIndicator(
-                            modifier = Modifier.fillMaxWidth(),
-                            color = colors.primary,
-                            trackColor = colors.outline,
-                        )
-                    }
-                    CalendarWeeks(
-                        weeks = uiState.weeks,
-                        onDayClick = onDayClick,
-                        onSwipeToPrevious = onPreviousMonth,
-                        onSwipeToNext = onNextMonth,
+                    MonthHeading(
+                        month = uiState.month,
+                        showArrows = !capturing,
+                        onPrevious = onPreviousMonth,
+                        onNext = onNextMonth,
                     )
-                    uiState.error?.let { error ->
-                        Text(
-                            text = stringResource(error),
-                            style = SetmonTheme.typography.label,
-                            color = colors.error,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                        )
-                        SetmonButton(
-                            text = stringResource(R.string.calendar_retry),
-                            onClick = onRetry,
-                            type = SetmonButtonType.Text,
-                            modifier = Modifier.align(Alignment.CenterHorizontally),
+
+                    Box(Modifier.fillMaxWidth().padding(top = 36.dp)) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = SetmonTheme.spacing.screenHorizontal)
+                                .shadow(elevation = 4.dp, shape = shape)
+                                .background(colors.surface, shape)
+                                .padding(horizontal = 4.dp, vertical = 12.dp),
+                        ) {
+                            WeekdayHeader()
+                            Rule()
+                            if (uiState.isLoading && !capturing) {
+                                LinearProgressIndicator(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = colors.primary,
+                                    trackColor = colors.outline,
+                                )
+                            }
+                            CalendarWeeks(
+                                weeks = uiState.weeks,
+                                onDayClick = onDayClick,
+                                onSwipeToPrevious = onPreviousMonth,
+                                onSwipeToNext = onNextMonth,
+                            )
+                            uiState.error?.let { error ->
+                                Text(
+                                    text = stringResource(error),
+                                    style = SetmonTheme.typography.label,
+                                    color = colors.error,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                )
+                                SetmonButton(
+                                    text = stringResource(R.string.calendar_retry),
+                                    onClick = onRetry,
+                                    type = SetmonButtonType.Text,
+                                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                                )
+                            }
+                            // 달력 사진에는 오늘 카드(촬영 버튼)를 넣지 않는다
+                            if (!capturing) {
+                                Rule()
+                                TodayCard(
+                                    title = stringResource(
+                                        R.string.calendar_today_title,
+                                        uiState.today.monthValue,
+                                        uiState.today.dayOfMonth,
+                                    ),
+                                    clipCount = uiState.todayClipCount,
+                                    readOnly = readOnly,
+                                    onRecordClick = onCaptureClick,
+                                    recordLabel = stringResource(R.string.calendar_record),
+                                    clipCountLabel = stringResource(R.string.calendar_clip_count, uiState.todayClipCount),
+                                )
+                            }
+                        }
+                        // 금속 클립이 달력 종이 윗부분을 집고 있는 모양
+                        Image(
+                            painter = painterResource(R.drawable.calendar_clip),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .offset(y = (-30).dp)
+                                .size(width = 72.dp, height = 36.dp),
                         )
                     }
-                    Rule()
-                    TodayCard(
-                        title = stringResource(
-                            R.string.calendar_today_title,
-                            uiState.today.monthValue,
-                            uiState.today.dayOfMonth,
-                        ),
-                        clipCount = uiState.todayClipCount,
-                        readOnly = readOnly,
-                        onRecordClick = onCaptureClick,
-                        recordLabel = stringResource(R.string.calendar_record),
-                        clipCountLabel = stringResource(R.string.calendar_clip_count, uiState.todayClipCount),
+
+                    Text(
+                        text = "setmon",
+                        style = SetmonTheme.typography.title,
+                        color = colors.primary,
+                        modifier = Modifier
+                            .align(Alignment.End)
+                            .padding(top = 12.dp, end = 20.dp, bottom = 16.dp),
                     )
                 }
-                // 금속 클립이 달력 종이 윗부분을 집고 있는 모양
-                Image(
-                    painter = painterResource(R.drawable.calendar_clip),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .offset(y = (-30).dp)
-                        .size(width = 72.dp, height = 36.dp),
-                )
+
+                // 저장 버튼은 로고 줄 왼쪽에 겹쳐 두되 사진에는 안 들어가게 레이어 밖에 둔다
+                if (!readOnly && !capturing) {
+                    SetmonButton(
+                        text = stringResource(R.string.calendar_image_save),
+                        onClick = { captureImage() },
+                        type = SetmonButtonType.Text,
+                        loading = uiState.isSavingImage,
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(start = 8.dp, bottom = 4.dp),
+                    )
+                }
             }
 
-            Text(
-                text = "setmon",
-                style = SetmonTheme.typography.title,
-                color = colors.primary,
-                modifier = Modifier
-                    .align(Alignment.End)
-                    .padding(top = 12.dp, end = 20.dp, bottom = 16.dp),
-            )
+            uiState.imageMessage?.let { message ->
+                Text(
+                    text = stringResource(message),
+                    style = SetmonTheme.typography.label,
+                    color = if (uiState.imageMessageIsError) colors.error else colors.primary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                )
+            }
         }
     }
 }
 
+/**
+ * 책갈피 줄: 마이페이지 · 친구들(닉네임순) · +
+ * - 내 달력: 마이페이지 줄이 선택됨. 누르면 S-12, 친구 줄은 그 친구 달력
+ * - 친구 달력: 그 친구 줄이 선택됨. 마이페이지 줄은 내 달력으로, 다른 친구 줄은 그 친구 달력으로 바꾼다
+ */
 @Composable
-private fun MonthHeading(month: YearMonth, onPrevious: () -> Unit, onNext: () -> Unit) {
+private fun bookmarkItems(
+    userId: Long,
+    readOnly: Boolean,
+    friendNickname: String?,
+    friends: List<Friend>,
+    onMyCalendarClick: () -> Unit,
+    onMyPageClick: () -> Unit,
+    onFriendCalendarClick: (friendUserId: Long, nickname: String) -> Unit,
+    onFriendClick: () -> Unit,
+): List<BookmarkItem> {
+    val myLabel = stringResource(R.string.calendar_my_page)
+    // 친구 목록을 받기 전에도 지금 보는 친구 줄은 보이게 한다
+    val shownFriends = if (readOnly && friendNickname != null && friends.none { it.userId == userId }) {
+        (friends + Friend(userId, friendNickname)).sortedBy { it.nickname }
+    } else {
+        friends
+    }
+    return buildList {
+        add(
+            BookmarkItem(
+                key = "me",
+                label = myLabel,
+                selected = !readOnly,
+                onClick = if (readOnly) onMyCalendarClick else onMyPageClick,
+            ),
+        )
+        shownFriends.forEach { friend ->
+            val selected = readOnly && friend.userId == userId
+            add(
+                BookmarkItem(
+                    key = friend.userId,
+                    label = friend.nickname,
+                    selected = selected,
+                    onClick = { if (!selected) onFriendCalendarClick(friend.userId, friend.nickname) },
+                ),
+            )
+        }
+        add(BookmarkItem(key = "add", label = "+", selected = false, onClick = onFriendClick))
+    }
+}
+
+@Composable
+private fun MonthHeading(month: YearMonth, showArrows: Boolean, onPrevious: () -> Unit, onNext: () -> Unit) {
     val colors = SetmonTheme.colors
     val typography = SetmonTheme.typography
     val previousLabel = stringResource(R.string.calendar_previous_month)
@@ -231,11 +417,15 @@ private fun MonthHeading(month: YearMonth, onPrevious: () -> Unit, onNext: () ->
             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(
-                onClick = onPrevious,
-                modifier = Modifier.semantics { contentDescription = previousLabel },
-            ) {
-                Text("‹", style = typography.title, color = colors.textPrimary)
+            if (showArrows) {
+                IconButton(
+                    onClick = onPrevious,
+                    modifier = Modifier.semantics { contentDescription = previousLabel },
+                ) {
+                    Text("‹", style = typography.title, color = colors.textPrimary)
+                }
+            } else {
+                Spacer(Modifier.width(48.dp)) // 화살표 자리 (달력 사진에서는 숨김)
             }
             Text(
                 text = month.month.getDisplayName(DateTextStyle.FULL, Locale.ENGLISH),
@@ -245,11 +435,15 @@ private fun MonthHeading(month: YearMonth, onPrevious: () -> Unit, onNext: () ->
                 maxLines = 1,
                 modifier = Modifier.weight(1f),
             )
-            IconButton(
-                onClick = onNext,
-                modifier = Modifier.semantics { contentDescription = nextLabel },
-            ) {
-                Text("›", style = typography.title, color = colors.textPrimary)
+            if (showArrows) {
+                IconButton(
+                    onClick = onNext,
+                    modifier = Modifier.semantics { contentDescription = nextLabel },
+                ) {
+                    Text("›", style = typography.title, color = colors.textPrimary)
+                }
+            } else {
+                Spacer(Modifier.width(48.dp))
             }
         }
         Box(
@@ -339,20 +533,25 @@ private fun CalendarScreenPreview() {
     val month = YearMonth.from(today)
     SetmonTheme {
         CalendarScreen(
+            userId = 1L,
             uiState = CalendarUiState(
                 month = month,
                 today = today,
                 weeks = buildCalendarWeeks(month, today, emptyList()),
+                friends = listOf(Friend(2L, "Minjun"), Friend(3L, "Taeyang")),
             ),
             readOnly = false,
+            friendNickname = null,
             onPreviousMonth = {},
             onNextMonth = {},
             onRetry = {},
             onDayClick = {},
             onCaptureClick = {},
+            onFriendCalendarClick = { _, _ -> },
+            onMyCalendarClick = {},
             onFriendClick = {},
             onMyPageClick = {},
-            onBack = {},
+            onImageCaptured = {},
         )
     }
 }

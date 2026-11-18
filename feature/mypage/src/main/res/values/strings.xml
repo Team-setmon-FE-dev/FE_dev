@@ -11,4 +11,22 @@
     <string name="mypage_error_network">인터넷 연결을 확인해 주세요</string>
     <string name="mypage_error_unknown">내 정보를 불러오지 못했어요.\n잠시 후 다시 시도해 주세요</string>
     <string name="mypage_retry">다시 시도</string>
+
+    <!-- 알림 설정 -->
+    <string name="mypage_reminders">알림</string>
+    <string name="mypage_reminders_start">촬영 알림 시작</string>
+    <string name="mypage_reminders_end">촬영 알림 끝</string>
+    <string name="mypage_capture_notify">촬영 알림</string>
+    <string name="mypage_complete_notify">브이로그 완성 알림</string>
+    <string name="mypage_hour">%1$02d:00</string>
+    <string name="mypage_error_hours">시작 시각이 끝 시각보다 늦을 수 없어요</string>
+    <string name="mypage_error_settings">설정을 저장하지 못했어요. 인터넷 연결을 확인해 주세요</string>
+
+    <!-- 탈퇴 -->
+    <string name="mypage_withdraw">계정 삭제</string>
+    <string name="mypage_withdraw_title">계정을 삭제할까요?</string>
+    <string name="mypage_withdraw_message">클립, 브이로그, 친구가 모두 영구히 지워져요. 되돌릴 수 없어요.</string>
+    <string name="mypage_withdraw_confirm">삭제</string>
+    <string name="mypage_withdraw_cancel">취소</string>
+    <string name="mypage_withdraw_failed">계정을 삭제하지 못했어요. 다시 시도해 주세요</string>
 </resources>

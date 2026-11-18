@@ -1,6 +1,10 @@
 package com.setmon.core.network.calendar
 
 import com.setmon.core.model.CalendarDaySummary
+import com.setmon.core.model.DayClip
+import com.setmon.core.model.DayDetail
+import com.setmon.core.model.DayVlog
+import com.setmon.core.model.DayVlogStatus
 import com.setmon.core.network.ApiResult
 import com.setmon.core.network.ServerClient
 import com.setmon.core.network.apiCall
@@ -23,5 +27,27 @@ class CalendarRemoteDataSource @Inject constructor(
                 clipCount = day.clipCount,
             )
         }
+    }
+
+    suspend fun getDay(userId: Long, date: LocalDate): ApiResult<DayDetail> = apiCall {
+        val day = api.getDay(userId, date.toString())
+        DayDetail(
+            userId = day.userId,
+            date = LocalDate.parse(day.date),
+            notifyStartHour = day.notifyStartHour,
+            notifyEndHour = day.notifyEndHour,
+            vlog = day.vlog?.let { vlog ->
+                DayVlog(
+                    status = DayVlogStatus.entries.firstOrNull { it.name == vlog.status } ?: DayVlogStatus.NONE,
+                    stale = vlog.stale,
+                    videoUrl = vlog.videoUrl,
+                    thumbnailUrl = vlog.thumbnailUrl,
+                    failReason = vlog.failReason,
+                )
+            } ?: DayVlog(DayVlogStatus.NONE, stale = false, videoUrl = null, thumbnailUrl = null, failReason = null),
+            clips = day.clips
+                .map { DayClip(it.id, it.slotHour, it.durationMs, it.videoUrl, it.thumbnailUrl) }
+                .sortedBy { it.slotHour },
+        )
     }
 }

@@ -1,9 +1,54 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="day_title">%1$d월 %2$d일</string>
+    <string name="day_title_friend">%1$s · %2$d월 %3$d일</string>
+    <string name="day_share">공유</string>
+    <string name="day_save_to_phone">휴대폰에 저장</string>
+    <string name="day_clips_today">오늘의 클립</string>
+    <string name="day_clips">이날의 클립</string>
+    <string name="day_slot_hour">%1$02d:00</string>
+    <string name="day_no_clips">아직 올린 클립이 없어요</string>
+    <string name="day_play">재생</string>
+    <string name="day_pause">일시정지</string>
+    <string name="day_retry">다시 시도</string>
+    <string name="day_play_error">영상을 재생하지 못했어요. 잠시 후 다시 눌러 주세요</string>
+
+    <!-- 상태 배지 -->
+    <string name="day_status_generating">만드는 중</string>
+    <string name="day_status_done">완성</string>
+    <string name="day_status_failed">실패</string>
+    <string name="day_vlog_failed">브이로그를 만들지 못했어요. 클립은 아래에서 볼 수 있어요</string>
+    <string name="day_vlog_done_now">브이로그가 완성됐어요</string>
+
+    <!-- 지금 만들기 -->
     <string name="day_make_vlog">지금 브이로그 만들기</string>
-    <string name="day_vlog_started">브이로그를 만들고 있어요. 잠시 후 달력에서 확인해 주세요</string>
+    <string name="day_vlog_started">브이로그를 만들고 있어요. 완성되면 여기서 바로 재생돼요</string>
     <string name="day_vlog_already_done">이미 최신 브이로그가 있어요</string>
     <string name="day_vlog_error_no_clips">오늘 올린 클립이 없어요</string>
     <string name="day_vlog_error_network">인터넷 연결을 확인해 주세요</string>
     <string name="day_vlog_error_unknown">잠시 후 다시 시도해 주세요</string>
+
+    <!-- 클립 삭제 -->
+    <string name="day_delete_title">클립을 삭제할까요?</string>
+    <string name="day_delete_message">%1$02d:00 클립이 지워지고, 그날 브이로그가 다시 만들어져요.</string>
+    <string name="day_delete_confirm">삭제</string>
+    <string name="day_delete_cancel">취소</string>
+    <string name="day_delete_done">클립을 삭제했어요</string>
+    <string name="day_delete_hint">클립을 눌러 달력 대표로 고르고, 길게 눌러 삭제할 수 있어요</string>
+
+    <!-- 달력 칸 대표 (썸네일 고르기) -->
+    <string name="day_cover_set_button">%1$02d:00 클립을 달력 대표로</string>
+    <string name="day_cover_clear_button">달력 대표 해제 (자동으로)</string>
+    <string name="day_cover_set">달력 칸 사진을 바꿨어요</string>
+    <string name="day_cover_cleared">달력 칸 사진을 자동으로 되돌렸어요</string>
+    <string name="day_cover_badge">대표</string>
+
+    <!-- 불러오기 -->
+    <string name="day_error_forbidden">친구가 아니라서 볼 수 없어요</string>
+
+    <!-- 갤러리 저장·공유 (B 의 VlogSaver) -->
+    <string name="day_saved">갤러리 Movies/Setmon 에 저장했어요</string>
+    <string name="day_save_need_vlog">브이로그가 완성되면 저장할 수 있어요</string>
+    <string name="day_save_error_permission">저장하려면 저장 권한이 필요해요</string>
+    <string name="day_save_error_storage">휴대폰 저장 공간을 확인해 주세요</string>
 </resources>
