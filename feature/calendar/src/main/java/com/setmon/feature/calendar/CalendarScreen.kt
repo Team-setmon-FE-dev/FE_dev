@@ -1,7 +1,12 @@
 package com.setmon.feature.calendar
 
 import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.net.Uri
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -44,6 +49,8 @@ import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -59,6 +66,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.setmon.core.designsystem.component.CalendarDayCell
+import com.setmon.core.designsystem.component.ConfirmDialog
 import com.setmon.core.designsystem.component.SetmonButton
 import com.setmon.core.designsystem.component.SetmonButtonType
 import com.setmon.core.designsystem.component.TodayCard
@@ -71,6 +79,12 @@ import java.util.Locale
 import kotlinx.coroutines.launch
 
 private val SWIPE_THRESHOLD = 64.dp
+
+/** 촬영에 필요한 권한 (B 의 CaptureScreen 과 같음) */
+private val CAPTURE_PERMISSIONS = arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
+
+private fun Context.isGranted(permission: String): Boolean =
+    ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
 private const val BACKGROUND_OVERLAY_ALPHA = 0.53f // 피그마의 Overlay 28% + BackgroundFilter 35%
 
 /** S-03 달력. 피그마 `S-03 · Main calendar` */
@@ -93,6 +107,39 @@ internal fun CalendarRoot(
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
 
+    // 촬영 버튼: 카메라·마이크 권한을 먼저 확인한다. 거부돼 있으면 한 번 더 요청하고,
+    // 그래도 안 되면("다시 묻지 않음" 포함) 안내 후 휴대폰 설정 화면으로 보낸다
+    val context = LocalContext.current
+    var showPermissionGuide by remember { mutableStateOf(false) }
+    val capturePermissions = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { results ->
+        if (results.values.all { it }) onCaptureClick() else showPermissionGuide = true
+    }
+    val onRecordClick = {
+        if (CAPTURE_PERMISSIONS.all { context.isGranted(it) }) {
+            onCaptureClick()
+        } else {
+            capturePermissions.launch(CAPTURE_PERMISSIONS)
+        }
+    }
+    if (showPermissionGuide) {
+        ConfirmDialog(
+            title = stringResource(R.string.calendar_permission_title),
+            message = stringResource(R.string.calendar_permission_message),
+            confirmLabel = stringResource(R.string.calendar_permission_open_settings),
+            dismissLabel = stringResource(R.string.calendar_permission_cancel),
+            onConfirm = {
+                showPermissionGuide = false
+                context.startActivity(
+                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            },
+            onDismiss = { showPermissionGuide = false },
+        )
+    }
+
     // Android 8~9 에서만 필요한 저장 권한
     val storagePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         viewModel.onStoragePermissionResult(granted, imageBackground)
@@ -110,7 +157,7 @@ internal fun CalendarRoot(
         onNextMonth = viewModel::showNextMonth,
         onRetry = viewModel::retry,
         onDayClick = onDayClick,
-        onCaptureClick = onCaptureClick,
+        onCaptureClick = onRecordClick,
         onFriendCalendarClick = onFriendCalendarClick,
         onMyCalendarClick = onMyCalendarClick,
         onFriendClick = onFriendClick,

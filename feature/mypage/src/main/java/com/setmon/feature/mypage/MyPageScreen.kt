@@ -19,7 +19,14 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -28,6 +35,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -35,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.setmon.core.designsystem.component.ConfirmDialog
 import com.setmon.core.designsystem.component.ErrorView
 import com.setmon.core.designsystem.component.LoadingView
 import com.setmon.core.designsystem.component.SetmonButton
@@ -42,8 +52,9 @@ import com.setmon.core.designsystem.component.SetmonButtonType
 import com.setmon.core.designsystem.component.SetmonTopBar
 import com.setmon.core.designsystem.theme.SetmonTheme
 import com.setmon.core.model.MyProfile
+import com.setmon.core.model.NotificationSettings
 
-/** S-12 마이페이지 기본 화면. 피그마 `S-12 · My page`. 알림 설정·탈퇴는 3주차 */
+/** S-12 마이페이지. 피그마 `S-12 · My page` / `(delete account)` */
 @Composable
 internal fun MyPageRoot(
     onLogout: () -> Unit,
@@ -60,8 +71,22 @@ internal fun MyPageRoot(
         uiState = uiState,
         onRetry = viewModel::load,
         onLogoutClick = viewModel::logout,
+        onSettingsChange = viewModel::updateSettings,
+        onWithdrawClick = viewModel::askWithdraw,
         onBack = onBack,
     )
+
+    if (uiState.showWithdrawDialog) {
+        ConfirmDialog(
+            title = stringResource(R.string.mypage_withdraw_title),
+            message = stringResource(R.string.mypage_withdraw_message),
+            confirmLabel = stringResource(R.string.mypage_withdraw_confirm),
+            dismissLabel = stringResource(R.string.mypage_withdraw_cancel),
+            onConfirm = viewModel::withdraw,
+            onDismiss = viewModel::dismissWithdraw,
+            destructive = true,
+        )
+    }
 }
 
 @Composable
@@ -69,6 +94,8 @@ private fun MyPageScreen(
     uiState: MyPageUiState,
     onRetry: () -> Unit,
     onLogoutClick: () -> Unit,
+    onSettingsChange: (NotificationSettings) -> Unit,
+    onWithdrawClick: () -> Unit,
     onBack: () -> Unit,
 ) {
     Column(
@@ -87,9 +114,10 @@ private fun MyPageScreen(
             )
             is MyPageContent.Loaded -> MyPageBody(
                 profile = content.profile,
-                isLoggingOut = uiState.isLoggingOut,
-                logoutFailed = uiState.logoutFailed,
+                uiState = uiState,
                 onLogoutClick = onLogoutClick,
+                onSettingsChange = onSettingsChange,
+                onWithdrawClick = onWithdrawClick,
             )
         }
     }
@@ -98,9 +126,10 @@ private fun MyPageScreen(
 @Composable
 private fun MyPageBody(
     profile: MyProfile,
-    isLoggingOut: Boolean,
-    logoutFailed: Boolean,
+    uiState: MyPageUiState,
     onLogoutClick: () -> Unit,
+    onSettingsChange: (NotificationSettings) -> Unit,
+    onWithdrawClick: () -> Unit,
 ) {
     val colors = SetmonTheme.colors
     val typography = SetmonTheme.typography
@@ -135,6 +164,23 @@ private fun MyPageBody(
         }
         Spacer(Modifier.height(32.dp))
         Text(
+            text = stringResource(R.string.mypage_reminders),
+            style = typography.subtitle,
+            color = colors.textPrimary,
+        )
+        Spacer(Modifier.height(8.dp))
+        RemindersCard(settings = profile.settings, onChange = onSettingsChange)
+        uiState.settingsError?.let { error ->
+            Text(
+                text = stringResource(error),
+                style = typography.label,
+                color = colors.error,
+                modifier = Modifier.padding(top = 8.dp, start = 4.dp),
+            )
+        }
+
+        Spacer(Modifier.height(32.dp))
+        Text(
             text = stringResource(R.string.mypage_account),
             style = typography.subtitle,
             color = colors.textPrimary,
@@ -143,9 +189,9 @@ private fun MyPageBody(
             text = stringResource(R.string.mypage_logout),
             onClick = onLogoutClick,
             type = SetmonButtonType.Text,
-            loading = isLoggingOut,
+            loading = uiState.isLoggingOut,
         )
-        if (logoutFailed) {
+        if (uiState.logoutFailed) {
             Text(
                 text = stringResource(R.string.mypage_logout_failed),
                 style = typography.label,
@@ -153,7 +199,118 @@ private fun MyPageBody(
                 modifier = Modifier.padding(start = 20.dp),
             )
         }
+        // 피그마처럼 빨간 글자. SetmonButton Text 형은 초록이라 직접 그린다
+        TextButton(onClick = onWithdrawClick, enabled = !uiState.isWithdrawing) {
+            Text(
+                text = stringResource(R.string.mypage_withdraw),
+                style = typography.label,
+                color = colors.error,
+            )
+        }
+        if (uiState.withdrawFailed) {
+            Text(
+                text = stringResource(R.string.mypage_withdraw_failed),
+                style = typography.label,
+                color = colors.error,
+                modifier = Modifier.padding(start = 20.dp),
+            )
+        }
     }
+}
+
+/** 피그마 Reminders 카드: 시작·끝 시각, 촬영 알림, 완성 알림. 바꾸면 바로 저장 */
+@Composable
+private fun RemindersCard(settings: NotificationSettings, onChange: (NotificationSettings) -> Unit) {
+    val colors = SetmonTheme.colors
+    val shape = SetmonTheme.shapes.card
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(colors.surface, shape)
+            .border(1.dp, colors.outline, shape)
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        SettingRow(label = stringResource(R.string.mypage_reminders_start)) {
+            HourChip(hour = settings.notifyStartHour) { onChange(settings.copy(notifyStartHour = it)) }
+        }
+        SettingRow(label = stringResource(R.string.mypage_reminders_end)) {
+            HourChip(hour = settings.notifyEndHour) { onChange(settings.copy(notifyEndHour = it)) }
+        }
+        SettingRow(label = stringResource(R.string.mypage_capture_notify)) {
+            SetmonSwitch(checked = settings.captureNotifyOn) { onChange(settings.copy(captureNotifyOn = it)) }
+        }
+        SettingRow(label = stringResource(R.string.mypage_complete_notify)) {
+            SetmonSwitch(checked = settings.completeNotifyOn) { onChange(settings.copy(completeNotifyOn = it)) }
+        }
+    }
+}
+
+@Composable
+private fun SettingRow(label: String, control: @Composable () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().height(56.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = SetmonTheme.typography.body,
+            color = SetmonTheme.colors.textPrimary,
+            modifier = Modifier.weight(1f),
+        )
+        control()
+    }
+}
+
+/** "09:00" 칸. 누르면 0~23시 목록 */
+@Composable
+private fun HourChip(hour: Int, onSelect: (Int) -> Unit) {
+    val colors = SetmonTheme.colors
+    val shape = SetmonTheme.shapes.thumbnail
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        Text(
+            text = stringResource(R.string.mypage_hour, hour),
+            style = SetmonTheme.typography.body,
+            color = colors.textPrimary,
+            modifier = Modifier
+                .clip(shape)
+                .background(colors.background, shape)
+                .border(1.dp, colors.outline, shape)
+                .clickable(role = Role.DropdownList) { expanded = true }
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.heightIn(max = 320.dp),
+        ) {
+            (0..23).forEach { h ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.mypage_hour, h), style = SetmonTheme.typography.body) },
+                    onClick = {
+                        expanded = false
+                        if (h != hour) onSelect(h)
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SetmonSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    val colors = SetmonTheme.colors
+    Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        colors = SwitchDefaults.colors(
+            checkedTrackColor = colors.primary,
+            checkedThumbColor = colors.onPrimary,
+            uncheckedTrackColor = colors.outline,
+            uncheckedThumbColor = colors.surface,
+            uncheckedBorderColor = colors.outline,
+        ),
+    )
 }
 
 @Composable
@@ -231,6 +388,8 @@ private fun MyPageScreenPreview() {
             ),
             onRetry = {},
             onLogoutClick = {},
+            onSettingsChange = {},
+            onWithdrawClick = {},
             onBack = {},
         )
     }
