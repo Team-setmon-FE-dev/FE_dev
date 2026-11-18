@@ -1,5 +1,7 @@
 package com.setmon.feature.day
 
+import android.content.Context
+import android.os.Build
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.compose.foundation.Canvas
@@ -40,7 +42,10 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
+import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil3.compose.AsyncImage
@@ -75,7 +80,7 @@ internal fun DayPlayer(
     val maxHeight = LocalConfiguration.current.screenHeightDp.dp * MAX_HEIGHT_FRACTION
     val currentOnError by rememberUpdatedState(onPlaybackError)
 
-    val exoPlayer = remember { ExoPlayer.Builder(context).build() }
+    val exoPlayer = remember { buildPlayer(context) }
     var isPlaying by remember { mutableStateOf(false) }
     var hasStarted by remember { mutableStateOf(false) }
 
@@ -193,6 +198,27 @@ internal fun DayPlayer(
         }
     }
 }
+
+/**
+ * 에뮬레이터의 하드웨어 H.264 디코더(c2.goldfish.h264.decoder)가 재생 중에 깨져서
+ * (ERROR_CODE_DECODING_FAILED) 에뮬레이터에서는 안드로이드 기본 소프트웨어 디코더를 먼저 쓴다.
+ * 실제 폰은 그대로(하드웨어 우선). 첫 디코더를 못 열면 다음 디코더로 넘어가게도 켠다.
+ */
+@OptIn(UnstableApi::class)
+private fun buildPlayer(context: Context): ExoPlayer {
+    val selector = MediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->
+        val decoders = MediaCodecUtil.getDecoderInfos(mimeType, requiresSecureDecoder, requiresTunnelingDecoder)
+        if (isEmulator()) decoders.sortedBy { !it.softwareOnly } else decoders
+    }
+    val renderers = DefaultRenderersFactory(context)
+        .setMediaCodecSelector(selector)
+        .setEnableDecoderFallback(true)
+    return ExoPlayer.Builder(context, renderers).build()
+}
+
+private fun isEmulator(): Boolean =
+    Build.HARDWARE.contains("goldfish") || Build.HARDWARE.contains("ranchu") ||
+        Build.FINGERPRINT.contains("generic") || Build.PRODUCT.contains("sdk")
 
 /** NONE 이면 배지 없음 */
 private fun statusBadge(status: DayVlogStatus): Pair<VlogStatus, Int>? = when (status) {
