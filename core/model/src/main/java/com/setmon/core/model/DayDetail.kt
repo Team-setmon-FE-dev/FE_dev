@@ -28,7 +28,7 @@ data class DayClip(
     /** 1시간 유효 */
     val videoUrl: String,
     val thumbnailUrl: String?,
-    /** 사용자가 고른 그날 달력 칸 대표 (하루 최대 1개) */
+    /** 사용자가 고른 그날 달력 칸 대표 (하루 최대 1개, 이 기기에만 저장 — core:data DayCoverStore) */
     val isCover: Boolean = false,
 )
 

@@ -6,6 +6,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.setmon.core.data.cover.DayCoverStore
 import com.setmon.core.data.day.DayError
 import com.setmon.core.data.day.DayRepository
 import com.setmon.core.data.day.DayResult
@@ -123,6 +124,7 @@ internal class DayViewModel @Inject constructor(
     private val dayRepository: DayRepository,
     private val vlogRepository: VlogRepository,
     private val vlogSaver: VlogSaver,
+    private val coverStore: DayCoverStore,
 ) : ViewModel() {
 
     private val route = savedStateHandle.toRoute<DayRoute>()
@@ -162,7 +164,7 @@ internal class DayViewModel @Inject constructor(
             val before = _uiState.value.status
             when (val result = dayRepository.getDay(route.userId, date)) {
                 is DayResult.Success -> {
-                    val day = result.day
+                    val day = withCover(result.day)
                     _uiState.update { state ->
                         state.copy(
                             isLoading = false,
@@ -183,6 +185,17 @@ internal class DayViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /** 이 기기에 저장된 대표 클립 표시. 고른 클립이 지워졌으면 대표도 지운다 */
+    private suspend fun withCover(day: DayDetail): DayDetail {
+        if (route.readOnly) return day
+        val coverId = coverStore.coverClipId(route.userId, date) ?: return day
+        if (day.clips.none { it.id == coverId }) {
+            coverStore.clearCover(route.userId, date)
+            return day
+        }
+        return day.copy(clips = day.clips.map { it.copy(isCover = it.id == coverId) })
     }
 
     /** 생성 중이면 몇 초 뒤 다시 조회 → 완성되면 playback 이 브이로그로 바뀌어 플레이어가 자동으로 넘어간다 */
@@ -243,6 +256,7 @@ internal class DayViewModel @Inject constructor(
         viewModelScope.launch {
             when (val error = dayRepository.deleteClip(clip.id)) {
                 null -> {
+                    if (clip.isCover) coverStore.clearCover(route.userId, date)
                     showMessage(R.string.day_delete_done, isError = false)
                     load()
                 }
@@ -259,13 +273,18 @@ internal class DayViewModel @Inject constructor(
         val makeCover = !clip.isCover
         _uiState.update { it.copy(isUpdatingCover = true, message = null) }
         viewModelScope.launch {
-            val error = dayRepository.setCover(clip.id, makeCover)
+            val ok = if (makeCover) {
+                coverStore.setCover(route.userId, date, clip.id, clip.thumbnailUrl)
+            } else {
+                coverStore.clearCover(route.userId, date)
+                true
+            }
             _uiState.update { it.copy(isUpdatingCover = false) }
-            if (error == null) {
+            if (ok) {
                 showMessage(if (makeCover) R.string.day_cover_set else R.string.day_cover_cleared, isError = false)
                 load()
             } else {
-                showMessage(error.messageRes(), isError = true)
+                showMessage(R.string.day_vlog_error_network, isError = true)
             }
         }
     }

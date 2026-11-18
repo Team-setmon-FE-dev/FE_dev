@@ -28,11 +28,4 @@ class DefaultDayRepository @Inject constructor(
         is ApiResult.ServerError -> if (result.code == "CLIP_NOT_FOUND") null else DayError.UNKNOWN
         ApiResult.NetworkError -> DayError.NETWORK
     }
-
-    override suspend fun setCover(clipId: Long, cover: Boolean): DayError? =
-        when (clipRemote.setCover(clipId, cover)) {
-            is ApiResult.Success -> null
-            is ApiResult.ServerError -> DayError.UNKNOWN
-            ApiResult.NetworkError -> DayError.NETWORK
-        }
 }

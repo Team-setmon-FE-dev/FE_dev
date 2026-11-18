@@ -1,6 +1,5 @@
 package com.setmon.feature.calendar
 
-import android.content.Intent
 import android.graphics.Bitmap
 import androidx.annotation.StringRes
 import androidx.lifecycle.SavedStateHandle
@@ -10,6 +9,7 @@ import androidx.navigation.toRoute
 import com.setmon.core.data.calendar.CalendarError
 import com.setmon.core.data.calendar.CalendarMonthResult
 import com.setmon.core.data.calendar.CalendarRepository
+import com.setmon.core.data.cover.DayCoverStore
 import com.setmon.core.data.friend.FriendRepository
 import com.setmon.core.data.friend.FriendResult
 import com.setmon.core.model.CalendarDaySummary
@@ -43,8 +43,6 @@ internal data class CalendarUiState(
     val imageMessageIsError: Boolean = false,
     /** Android 8~9 저장 권한을 화면이 요청해야 함 */
     val needsStoragePermission: Boolean = false,
-    /** 화면이 띄울 공유 시트 */
-    val shareIntent: Intent? = null,
 )
 
 @HiltViewModel
@@ -53,12 +51,16 @@ internal class CalendarViewModel @Inject constructor(
     private val calendarRepository: CalendarRepository,
     private val friendRepository: FriendRepository,
     private val imageSaver: CalendarImageSaver,
+    private val coverStore: DayCoverStore,
 ) : ViewModel() {
 
     private val route: CalendarRoute = savedStateHandle.toRoute<CalendarRoute>()
     private val userId: Long = route.userId
     private val loadedMonths = mutableMapOf<YearMonth, List<CalendarDaySummary>>()
     private var loadJob: Job? = null
+
+    /** 이 기기에서 고른 대표 사진 (내 달력만). 날짜 → file:// */
+    private var covers: Map<LocalDate, String> = emptyMap()
 
     private val _uiState = MutableStateFlow(
         todayInKorea().let { today ->
@@ -79,6 +81,16 @@ internal class CalendarViewModel @Inject constructor(
         if (currentMonth != visibleMonth) refreshCurrentMonth(currentMonth)
 
         refreshFriends()
+        refreshCovers()
+    }
+
+    /** S-05 에서 대표를 바꾸고 돌아오면 반영되게 화면에 올 때마다 다시 읽는다 */
+    private fun refreshCovers() {
+        if (route.readOnly) return
+        viewModelScope.launch {
+            covers = coverStore.coverImages(userId)
+            render()
+        }
     }
 
     fun showPreviousMonth() = showMonth(_uiState.value.month.minusMonths(1))
@@ -132,14 +144,14 @@ internal class CalendarViewModel @Inject constructor(
     // ---- 한 달 달력 사진 저장·공유 ----
 
     /** 권한 요청 뒤 이어서 저장하려고 남겨 둔다 */
-    private var pendingImage: Pair<Bitmap, Boolean>? = null
+    private var pendingImage: Bitmap? = null
     private var messageJob: Job? = null
 
     /**
-     * 화면이 뜬 달력 그림을 저장한다. share = true 면 저장 후 공유 시트.
+     * 화면이 뜬 달력 그림을 갤러리에 저장한다 (공유는 하지 않기로 함: 브이로그만 공유)
      * @param image null 이면 화면에서 그림을 뜨지 못한 것
      */
-    fun saveImage(image: Bitmap?, backgroundColor: Int, share: Boolean) {
+    fun saveImage(image: Bitmap?, backgroundColor: Int) {
         if (image == null) {
             showImageMessage(R.string.calendar_image_error, isError = true)
             return
@@ -152,14 +164,10 @@ internal class CalendarViewModel @Inject constructor(
                 is CalendarImageResult.Success -> {
                     pendingImage = null
                     _uiState.update { it.copy(isSavingImage = false) }
-                    if (share) {
-                        _uiState.update { it.copy(shareIntent = imageSaver.shareIntent(result.uri, title = "setmon $month")) }
-                    } else {
-                        showImageMessage(R.string.calendar_image_saved, isError = false)
-                    }
+                    showImageMessage(R.string.calendar_image_saved, isError = false)
                 }
                 CalendarImageResult.PermissionRequired -> {
-                    pendingImage = image to share
+                    pendingImage = image
                     _uiState.update { it.copy(isSavingImage = false, needsStoragePermission = true) }
                 }
                 CalendarImageResult.Failure -> {
@@ -176,11 +184,9 @@ internal class CalendarViewModel @Inject constructor(
         pendingImage = null
         when {
             !granted -> showImageMessage(R.string.calendar_image_error_permission, isError = true)
-            pending != null -> saveImage(pending.first, backgroundColor, pending.second)
+            pending != null -> saveImage(pending, backgroundColor)
         }
     }
-
-    fun onShareShown() = _uiState.update { it.copy(shareIntent = null) }
 
     /** 안내 문구는 3초 뒤 사라진다 */
     private fun showImageMessage(@StringRes message: Int, isError: Boolean) {
@@ -194,7 +200,13 @@ internal class CalendarViewModel @Inject constructor(
 
     private fun render() = _uiState.update { state ->
         state.copy(
-            weeks = buildCalendarWeeks(state.month, state.today, loadedMonths[state.month].orEmpty()),
+            weeks = buildCalendarWeeks(
+                state.month,
+                state.today,
+                loadedMonths[state.month].orEmpty().map { day ->
+                    covers[day.date]?.let { day.copy(thumbnailUrl = it) } ?: day
+                },
+            ),
             todayClipCount = loadedMonths[YearMonth.from(state.today)]
                 ?.firstOrNull { it.date == state.today }
                 ?.clipCount

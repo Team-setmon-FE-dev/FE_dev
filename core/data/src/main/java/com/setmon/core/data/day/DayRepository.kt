@@ -9,9 +9,6 @@ interface DayRepository {
 
     /** 성공(이미 지워진 경우 포함)이면 null */
     suspend fun deleteClip(clipId: Long): DayError?
-
-    /** 달력 칸 대표 지정(cover = true)·해제. 성공이면 null */
-    suspend fun setCover(clipId: Long, cover: Boolean): DayError?
 }
 
 sealed interface DayResult {

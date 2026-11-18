@@ -3,7 +3,6 @@ package com.setmon.feature.calendar
 import android.Manifest
 import android.content.ContentValues
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -32,7 +31,7 @@ internal sealed interface CalendarImageResult {
 }
 
 /**
- * 한 달 달력 그림을 갤러리 Pictures/Setmon 에 PNG 로 저장하고 공유한다.
+ * 한 달 달력 그림을 갤러리 Pictures/Setmon 에 PNG 로 저장한다 (공유는 브이로그만).
  * (영상 저장은 B 의 VlogSaver, 이건 A 의 달력 사진 저장)
  * - Android 10+ : 권한 없이 MediaStore 에 쓴다
  * - Android 8~9 : WRITE_EXTERNAL_STORAGE (core:data 매니페스트에 maxSdk 28 로 선언돼 있음)
@@ -66,15 +65,6 @@ internal class CalendarImageSaver @Inject constructor(
                 CalendarImageResult.Failure
             }
         }
-
-    fun shareIntent(uri: Uri, title: String): Intent {
-        val send = Intent(Intent.ACTION_SEND).apply {
-            type = MIME_TYPE
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        return Intent.createChooser(send, title)
-    }
 
     /** 하드웨어 비트맵일 수 있어 일반 비트맵으로 옮기면서 배경색을 깐다 */
     private fun flatten(image: Bitmap, backgroundColor: Int): Bitmap {
@@ -113,7 +103,7 @@ internal class CalendarImageSaver @Inject constructor(
 
     /**
      * Android 8~9: 공용 Pictures 폴더에 쓰고 갤러리가 알도록 스캔.
-     * 공유에는 file:// 를 쓰면 앱이 죽어서(FileUriExposedException) 스캔이 돌려주는 content:// 를 쓴다
+     * 스캔이 돌려주는 content:// 를 결과로 쓴다
      */
     @Suppress("DEPRECATION")
     private suspend fun writeLegacy(bitmap: Bitmap, displayName: String): Uri {

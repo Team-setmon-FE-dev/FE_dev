@@ -46,7 +46,7 @@ class CalendarRemoteDataSource @Inject constructor(
                 )
             } ?: DayVlog(DayVlogStatus.NONE, stale = false, videoUrl = null, thumbnailUrl = null, failReason = null),
             clips = day.clips
-                .map { DayClip(it.id, it.slotHour, it.durationMs, it.videoUrl, it.thumbnailUrl, isCover = it.cover) }
+                .map { DayClip(it.id, it.slotHour, it.durationMs, it.videoUrl, it.thumbnailUrl) }
                 .sortedBy { it.slotHour },
         )
     }

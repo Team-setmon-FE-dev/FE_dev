@@ -57,6 +57,4 @@ internal data class ClipItemResponse(
     val durationMs: Int = 0,
     val videoUrl: String,
     val thumbnailUrl: String? = null,
-    /** 서버에 대표 기능이 배포되기 전에는 오지 않으므로 기본 false */
-    val cover: Boolean = false,
 )

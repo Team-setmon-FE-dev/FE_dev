@@ -44,7 +44,6 @@ import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -89,7 +88,6 @@ internal fun CalendarRoot(
     viewModel: CalendarViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
     // 달력 사진에서 투명한 곳(배경 사진 자리)을 채울 색. 잡지 배경은 시연용이라 저장 사진엔 넣지 않는다
     val imageBackground = SetmonTheme.colors.background.toArgb()
 
@@ -101,12 +99,6 @@ internal fun CalendarRoot(
     }
     LaunchedEffect(uiState.needsStoragePermission) {
         if (uiState.needsStoragePermission) storagePermission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-    }
-    LaunchedEffect(uiState.shareIntent) {
-        uiState.shareIntent?.let { intent ->
-            context.startActivity(intent)
-            viewModel.onShareShown()
-        }
     }
 
     CalendarScreen(
@@ -123,7 +115,7 @@ internal fun CalendarRoot(
         onMyCalendarClick = onMyCalendarClick,
         onFriendClick = onFriendClick,
         onMyPageClick = onMyPageClick,
-        onImageCaptured = { image, share -> viewModel.saveImage(image, imageBackground, share) },
+        onImageCaptured = { image -> viewModel.saveImage(image, imageBackground) },
     )
 }
 
@@ -143,7 +135,7 @@ private fun CalendarScreen(
     onFriendClick: () -> Unit,
     onMyPageClick: () -> Unit,
     /** 달력 그림을 떴을 때 (실패하면 null) */
-    onImageCaptured: (image: Bitmap?, share: Boolean) -> Unit,
+    onImageCaptured: (image: Bitmap?) -> Unit,
 ) {
     val colors = SetmonTheme.colors
     val shape = SetmonTheme.shapes.thumbnail
@@ -152,7 +144,7 @@ private fun CalendarScreen(
     val captureLayer = rememberGraphicsLayer()
     var capturing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    fun captureImage(share: Boolean) {
+    fun captureImage() {
         if (capturing) return
         scope.launch {
             // 촬영 버튼·화살표를 숨긴 화면이 한 번 그려지길 기다린 뒤 뜬다 (아주 잠깐 깜박인다)
@@ -161,7 +153,7 @@ private fun CalendarScreen(
             withFrameNanos { }
             val image = runCatching { captureLayer.toImageBitmap().asAndroidBitmap() }.getOrNull()
             capturing = false
-            onImageCaptured(image, share)
+            onImageCaptured(image)
         }
     }
 
@@ -290,26 +282,17 @@ private fun CalendarScreen(
                     )
                 }
 
-                // 저장·공유 버튼은 로고 줄 왼쪽에 겹쳐 두되 사진에는 안 들어가게 레이어 밖에 둔다
+                // 저장 버튼은 로고 줄 왼쪽에 겹쳐 두되 사진에는 안 들어가게 레이어 밖에 둔다
                 if (!readOnly && !capturing) {
-                    Row(
+                    SetmonButton(
+                        text = stringResource(R.string.calendar_image_save),
+                        onClick = { captureImage() },
+                        type = SetmonButtonType.Text,
+                        loading = uiState.isSavingImage,
                         modifier = Modifier
                             .align(Alignment.BottomStart)
                             .padding(start = 8.dp, bottom = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        SetmonButton(
-                            text = stringResource(R.string.calendar_image_save),
-                            onClick = { captureImage(share = false) },
-                            type = SetmonButtonType.Text,
-                            loading = uiState.isSavingImage,
-                        )
-                        SetmonButton(
-                            text = stringResource(R.string.calendar_image_share),
-                            onClick = { captureImage(share = true) },
-                            type = SetmonButtonType.Text,
-                        )
-                    }
+                    )
                 }
             }
 
@@ -521,7 +504,7 @@ private fun CalendarScreenPreview() {
             onMyCalendarClick = {},
             onFriendClick = {},
             onMyPageClick = {},
-            onImageCaptured = { _, _ -> },
+            onImageCaptured = {},
         )
     }
 }
